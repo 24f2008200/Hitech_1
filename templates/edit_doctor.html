@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    Edit Doctor — ID {{ doctor.id }}
+  </div>
+  <div class="card-body">
+    <form method="post">
+      <div class="row mb-3">
+        <div class="col">
+          <label class="form-label">First name</label>
+          <input type="text" name="first_name" class="form-control" value="{{ doctor.first_name }}" required>
+        </div>
+        <div class="col">
+          <label class="form-label">Last name</label>
+          <input type="text" name="last_name" class="form-control" value="{{ doctor.last_name }}">
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" value="{{ doctor.email }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Phone</label>
+        <input type="text" name="phone" class="form-control" value="{{ doctor.phone }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">License Number</label>
+        <input type="text" name="license_number" class="form-control" value="{{ doctor.license_number }}">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Department</label>
+        <select name="specialization_id" class="form-select">
+          <option value="">-- none --</option>
+          {% for dept in departments %}
+            <option value="{{ dept.id }}" {% if doctor.specialization_id == dept.id %}selected{% endif %}>{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 🔒 Reset Password -->
+      <div class="mb-3">
+        <label class="form-label">Reset Password</label>
+        <input type="password" name="password" class="form-control" placeholder="Leave blank to keep current password">
+      </div>
+
+      <button class="btn btn-success">Save changes</button>
+      <a class="btn btn-secondary ms-2" href="{{ url_for('admin_dashboard') }}">Cancel</a>
+    </form>
+
+    <!-- 🚫 Blacklist Doctor -->
+    <form method="post" action="{{ url_for('blacklist_user', user_id=user.id) }}" class="mt-3">
+      <button type="submit" class="btn btn-danger">🚫 Blacklist Doctor</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

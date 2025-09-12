@@ -1,0 +1,15 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    font-weight: bold;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}

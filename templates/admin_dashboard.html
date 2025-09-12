@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card text-white bg-primary mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Doctors</h5>
+        <p class="card-text display-6">{{ total_doctors }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-white bg-success mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Patients</h5>
+        <p class="card-text display-6">{{ total_patients }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card text-white bg-info mb-3">
+      <div class="card-body">
+        <h5 class="card-title">Appointments</h5>
+        <p class="card-text display-6">{{ total_appointments }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Search box -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="post" action="{{ url_for('admin_search') }}" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label">Entity</label>
+        <select name="entity" class="form-select" required>
+          <option value="doctor" {% if entity=='doctor' %}selected{% endif %}>Doctor</option>
+          <option value="patient" {% if entity=='patient' %}selected{% endif %}>Patient</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label class="form-label">Search by</label>
+        <select name="search_by" class="form-select" required>
+          <option value="name" {% if search_by=='name' %}selected{% endif %}>Name</option>
+          <option value="id" {% if search_by=='id' %}selected{% endif %}>ID</option>
+          <option value="contact" {% if search_by=='contact' %}selected{% endif %}>Contact (email/phone)</option>
+        </select>
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Query</label>
+        <input name="q" class="form-control" placeholder="Enter name, id or phone/email" value="{{ query or '' }}" required>
+      </div>
+
+      <div class="col-md-2">
+        <button class="btn btn-primary w-100">Search</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Results -->
+{% if results is not none %}
+  <div class="card">
+    <div class="card-header">
+      Results for "{{ query }}" ({{ results|length }}) — {{ entity|capitalize if entity else '' }}
+    </div>
+    <div class="card-body">
+      {% if results %}
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                {% if entity == 'doctor' %}
+                  <th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Department</th><th>Action</th>
+                {% else %}
+                  <th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Action</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in results %}
+                <tr>
+                  <td>{{ item.id }}</td>
+                  <td>{{ item.first_name }} {{ item.last_name }}</td>
+                  <td>{{ item.email }}</td>
+                  <td>{{ item.phone }}</td>
+                  {% if entity == 'doctor' %}
+                    <td>{{ item.department.name if item.department else 'N/A' }}</td>
+                    <td>
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_doctor', doctor_id=item.id) }}">Edit</a>
+                    </td>
+                  {% else %}
+                    <td>
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('edit_patient', patient_id=item.id) }}">Edit</a>
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p>No results found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+

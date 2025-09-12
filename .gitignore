@@ -1,0 +1,27 @@
+# Ignore system files
+desktop.ini
+Thumbs.db
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+
+# Ignore local configs
+.env
+*.sqlite3
+
+# Ignore other files
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.db
+
+# Ignore VS Code settings
+.vscode/
+.venv/
+
+*.txt
+get_pip.py
