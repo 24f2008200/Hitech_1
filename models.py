@@ -44,8 +44,7 @@ class User( db.Model):   # <-- inherit UserMixin
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.Enum(Role), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)   # 👈 for blacklist
-
+    is_active = db.Column(db.Boolean, default=True)   # new
     patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=True)
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=True)
 
@@ -55,11 +54,15 @@ class User( db.Model):   # <-- inherit UserMixin
         self.role = role
         self.patient_id = patient_id
         self.doctor_id = doctor_id
+        self.is_active = True
+
 
     def set_password(self, plain: str):
         self.password_hash = hashlib.sha256(plain.encode("utf-8")).hexdigest()
 
     def check_password(self, plain: str) -> bool:
+        print(self.password_hash)
+        print(hashlib.sha256(plain.encode("utf-8")).hexdigest())
         return self.password_hash == hashlib.sha256(plain.encode("utf-8")).hexdigest()
 
 

@@ -16,8 +16,9 @@ def home():
 def login():
     username = request.form["username"]
     password = request.form["password"]
-
+    print("hi" ,username,password)
     user = User.query.filter_by(username=username).first()
+    print("hi" ,username,password)
     if user and user.check_password(password):
         session["user_id"] = user.id
         session["role"] = user.role.name
