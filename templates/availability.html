@@ -1,0 +1,78 @@
+{% extends "index.html" %}
+
+{% block title %}Doctor Dashboard - HMS{% endblock %}
+{% block styles %}
+<style>
+    td.slot {
+        cursor: pointer;
+        text-align: center;
+    }
+
+    td.available {
+        background-color: #28a745;
+        color: white;
+    }
+
+    td.unavailable {
+        background-color: #dc3545;
+        color: white;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div>
+    <h3>Doctor Availability (Next 90 Days)</h3>
+
+    <table class="table table-bordered table-sm">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Morning</th>
+                <th>Afternoon</th>
+                <th>Evening</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in days %}
+            <tr>
+                <td>{{ d.strftime("%a %d %b") }}</td>
+                {% for session in ["morning", "afternoon", "evening"] %}
+                {% set available = slots[d.isoformat()][session] %}
+                <td class="slot {{ 'available' if available else 'unavailable' }}" data-date="{{ d.isoformat() }}"
+                    data-session="{{ session }}">
+                    {{ "✔" if available else "✖" }}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    document.querySelectorAll(".slot").forEach(cell => {
+        cell.addEventListener("click", () => {
+            const isAvailable = cell.classList.contains("available");
+            const newAvailable = !isAvailable;
+
+            // toggle UI
+            cell.classList.toggle("available", newAvailable);
+            cell.classList.toggle("unavailable", !newAvailable);
+            cell.textContent = newAvailable ? "✔" : "✖";
+
+            // send update to Flask
+            fetch(`/update_slot/{{ doctor_id }}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date: cell.dataset.date,
+                    session: cell.dataset.session,
+                    available: newAvailable
+                })
+            });
+        });
+    });
+</script>
+
+{% endblock %}

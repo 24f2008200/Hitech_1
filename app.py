@@ -1,344 +1,219 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from models import db, app as base_app, User, Role, Doctor, Patient, Department, Appointment
+import os
+from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
+from models import db,Admin ,  Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Availability
+from flask import Flask, request, jsonify
+from flask_jwt_extended import JWTManager, create_access_token
+from models import db, User
+from werkzeug.security import check_password_hash
+from package.routes.auth import admin_required,  doctor_required, patient_required
+from flask_wtf import CSRFProtect
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from datetime import datetime ,timedelta ,date
 
-# App Config
-app = base_app
-app.secret_key = "super-secret-key"
+app = Flask(__name__)
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database.sqlite3"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["JWT_SECRET_KEY"] = "super-secret-key"  # 🔒 use .env in real app!
+app.config['SECRET_KEY'] = 'supersecretkey'  # Needed for CSRF tokens
 
 
-# Routes
+db.init_app(app)
+# jwt = JWTManager(app)
+# csrf = CSRFProtect(app)
+
+login_manager = LoginManager(app)
+login_manager.login_view = "login" 
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static'),
+        'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+
 @app.route("/")
-def home():
+def index():
     return render_template("login.html")
 
+@app.route("/register")
+def register():
+    return render_template("register.html")
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
 @app.route("/login", methods=["POST"])
 def login():
-    username = request.form["username"]
-    password = request.form["password"]
-    print("hi" ,username,password)
-    user = User.query.filter_by(username=username).first()
-    print("hi" ,username,password)
-    if user and user.check_password(password):
-        session["user_id"] = user.id
-        session["role"] = user.role.name
-        flash("Login successful!", "success")
-        # Redirect based on role
-        if session["role"] == "ADMIN":
-            return redirect(url_for("admin_dashboard"))
-        elif session["role"] == "DOCTOR":
-            return redirect(url_for("doctor_dashboard"))
-        elif session["role"] == "PATIENT":
-            return redirect(url_for("patient_dashboard"))
-    else:
-        flash("❌ Invalid username or password", "danger")
-        return redirect(url_for("home"))
-
+    if request.method == "POST":
+        user = User.query.filter_by(email=request.form['email']).first()
+        if user and user.check_password(request.form['password']):
+            login_user(user)  # stores ID in session
+            role = user.role
+            dashboard = "admin_dashboard" if role =="admin" else "doctor_dashboard" if role =="doctor" else "patient_dashboard"
+            return redirect(url_for(dashboard))
+        return "Invalid credentials", 401
+    return render_template("login.html")
 
 @app.route("/logout")
+@login_required
 def logout():
-    session.clear()
-    flash("Logged out successfully", "info")
-    return redirect(url_for("home"))
+    logout_user()
+    return render_template("login.html")
 
 
-@app.route("/register_patient", methods=["GET", "POST"])
-def register_patient():
-    if request.method == "POST":
-        first_name = request.form["first_name"]
-        last_name = request.form["last_name"]
-        email = request.form["email"]
-        phone = request.form["phone"]
-        username = request.form["username"]
-        password = request.form["password"]
-
-        # Create Patient
-        patient = Patient(first_name=first_name, last_name=last_name,
-                          email=email, phone=phone)
-        db.session.add(patient)
-        db.session.flush()  
-
-        # Create User
-        user = User(username=username, password=password, role=Role.PATIENT, patient_id=patient.id)
-        db.session.add(user)
-        db.session.commit()
-
-        flash("Patient registered successfully! Please login.", "success")
-        return redirect(url_for("home"))
-
-    return render_template("register_patient.html")
-
-
-# ---------- Dashboards ----------
-@app.route("/dashboard/admin")
+@app.route("/admin/dashboard")
+@admin_required
 def admin_dashboard():
-    # ensure logged-in admin
-    if session.get("role") != "ADMIN":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
+    doctors = Doctor.query.all()
+    patients = Patient.query.all()
+    appointments = Appointment.query.all()
+    return render_template("admin_dashboard.html", doctors=doctors, patients=patients, appointments=appointments)
 
-    # Summary counts
-    total_doctors = db.session.query(Doctor).count()
-    total_patients = db.session.query(Patient).count()
-    total_appointments = db.session.query(Appointment).count()
-
-
-    return render_template(
-        "admin_dashboard.html",
-        total_doctors=total_doctors,
-        total_patients=total_patients,
-        total_appointments=total_appointments,
-        results=None,
-        entity=None,
-        query=None,
-        search_by=None
-    )
-
-@app.route("/admin/search", methods=["POST"])
-def admin_search():
-    if session.get("role") != "ADMIN":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
-
-    entity = request.form.get("entity")          # 'doctor' or 'patient'
-    search_by = request.form.get("search_by")    # 'name', 'id', 'contact'
-    q = request.form.get("q", "").strip()
-
-    results = []
-
-    if not q:
-        flash("Please enter a search query.", "warning")
-        return redirect(url_for("admin_dashboard"))
-
-    # ----- Search Doctors -----
-    if entity == "doctor":
-        if search_by == "id":
-            if q.isdigit():
-                doc = db.session.get(Doctor, int(q))
-                if doc:
-                    results = [doc]
-            else:
-                results = []
-        elif search_by == "name":
-            # search first OR last name
-            results = db.session.query(Doctor).filter(
-                (Doctor.first_name.ilike(f"%{q}%")) |
-                (Doctor.last_name.ilike(f"%{q}%"))
-            ).all()
-        elif search_by == "contact":
-            results = db.session.query(Doctor).filter(
-                (Doctor.email.ilike(f"%{q}%")) |
-                (Doctor.phone.ilike(f"%{q}%"))
-            ).all()
-
-    # ----- Search Patients -----
-    elif entity == "patient":
-        if search_by == "id":
-            if q.isdigit():
-                pat = db.session.get(Patient, int(q))
-                if pat:
-                    results = [pat]
-            else:
-                results = []
-        elif search_by == "name":
-            results = db.session.query(Patient).filter(
-                (Patient.first_name.ilike(f"%{q}%")) |
-                (Patient.last_name.ilike(f"%{q}%"))
-            ).all()
-        elif search_by == "contact":
-            results = db.session.query(Patient).filter(
-                (Patient.email.ilike(f"%{q}%")) |
-                (Patient.phone.ilike(f"%{q}%"))
-            ).all()
-
-    # Get fresh counts for the dashboard summary
-    total_doctors = db.session.query(Doctor).count()
-    total_patients = db.session.query(Patient).count()
-    total_appointments = db.session.query(Appointment).count()
-
-    if not results:
-        flash("No results found.", "info")
-
-    return render_template(
-        "admin_dashboard.html",
-        total_doctors=total_doctors,
-        total_patients=total_patients,
-        total_appointments=total_appointments,
-        results=results,
-        entity=entity,
-        query=q,
-        search_by=search_by
-    )
-
-
-# ------------------ Edit doctor ------------------
-@app.route("/admin/edit_doctor/<int:doctor_id>", methods=["GET", "POST"])
-def edit_doctor(doctor_id):
-    if session.get("role") != "ADMIN":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
-
-    doctor = db.session.get(Doctor, doctor_id)
-    if not doctor:
-        flash("Doctor not found.", "danger")
-        return redirect(url_for("admin_dashboard"))
-
-    if request.method == "POST":
-        doctor.first_name = request.form.get("first_name", doctor.first_name)
-        doctor.last_name = request.form.get("last_name", doctor.last_name)
-        doctor.email = request.form.get("email", doctor.email)
-        doctor.phone = request.form.get("phone", doctor.phone)
-        doctor.license_number = request.form.get("license_number", doctor.license_number)
-        specialization_id = request.form.get("specialization_id")
-        if specialization_id:
-            doctor.specialization_id = int(specialization_id)
-        new_password = request.form.get("password")
-        if new_password:
-            doctor.user.set_password(new_password)
-        db.session.commit()
-        flash("✅ Doctor updated successfully", "success")
-        return redirect(url_for("admin_dashboard"))
-
-    departments = db.session.query(Department).all()
-    return render_template("edit_doctor.html", doctor=doctor, departments=departments ,user=doctor.user)
-
-
-# ------------------ Edit patient ------------------
-@app.route("/admin/edit_patient/<int:patient_id>", methods=["GET", "POST"])
-def edit_patient(patient_id):
-    if session.get("role") != "ADMIN":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
-
-    patient = db.session.get(Patient, patient_id)
-    if not patient:
-        flash("Patient not found.", "danger")
-        return redirect(url_for("admin_dashboard"))
-
-    if request.method == "POST":
-        patient.first_name = request.form.get("first_name", patient.first_name)
-        patient.last_name = request.form.get("last_name", patient.last_name)
-        patient.email = request.form.get("email", patient.email)
-        patient.phone = request.form.get("phone", patient.phone)
-        patient.address = request.form.get("address", patient.address)
-        new_password = request.form.get("password")
-        if new_password:
-            patient.user.set_password(new_password)
-        db.session.commit()
-        flash("✅ Patient updated successfully", "success")
-        return redirect(url_for("admin_dashboard"))
-
-    return render_template("edit_patient.html", patient=patient ,user=patient.user)
-
-@app.route("/admin/blacklist_user/<int:user_id>", methods=["POST"])
-def blacklist_user(user_id):
-    user = User.query.get_or_404(user_id)
-    user.is_active = False
-    db.session.commit()
-    flash(f"User {user.username} has been blacklisted.", "warning")
-    return redirect(url_for("admin_dashboard"))
-
-@app.route("/admin/edit_user/<int:user_id>", methods=["GET", "POST"])
-def edit_user(user_id):
-    user = User.query.get_or_404(user_id)
-
-    # Link doctor/patient if exists
-    doctor = Doctor.query.get(user.doctor_id) if user.doctor_id else None
-    patient = Patient.query.get(user.patient_id) if user.patient_id else None
-
-    if request.method == "POST":
-        # Update core User fields
-        user.username = request.form.get("username")
-        user.role = request.form.get("role")
-
-        # Update doctor fields if applicable
-        if doctor:
-            doctor.first_name = request.form.get("first_name")
-            doctor.last_name = request.form.get("last_name")
-            doctor.email = request.form.get("email")
-            doctor.phone = request.form.get("phone")
-            doctor.license_number = request.form.get("license_number")
-            doctor.specialization_id = request.form.get("specialization_id")
-
-        # Update patient fields if applicable
-        if patient:
-            patient.first_name = request.form.get("first_name")
-            patient.last_name = request.form.get("last_name")
-            patient.email = request.form.get("email")
-            patient.phone = request.form.get("phone")
-
-        # Password reset (only if provided)
-        new_password = request.form.get("password")
-        if new_password:
-            user.set_password(new_password)
-
-        db.session.commit()
-        flash("✅ User details updated successfully!", "success")
-        return redirect(url_for("admin_dashboard"))
-
-    return render_template("edit_user.html", user=user, doctor=doctor, patient=patient)
-
-
-
-@app.route("/dashboard/doctor")
+@app.route("/doctor/dashboard")
+@doctor_required
 def doctor_dashboard():
-    if session.get("role") != "DOCTOR":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
-    user = db.session.get(User, session.get("user_id"))
-    doctor = user.doctor_account if user else None
-    appointments = doctor.appointments if doctor else []
-    return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments)
+    doctor  = current_user
+    appointments = doctor.appointments
+    patients = {appt.patient for appt in appointments}  # unique patients
+    return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
 
-
-@app.route("/dashboard/patient")
+@app.route("/patient/dashboard")
+@patient_required
 def patient_dashboard():
-    if session.get("role") != "PATIENT":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
-    user = db.session.get(User, session.get("user_id"))
-    patient = user.patient_account if user else None
-    appointments = patient.appointments if patient else []
-    return render_template("patient_dashboard.html", patient=patient, appointments=appointments)
+    patient =  current_user
+    appointments = patient.appointments
+    treatments = [t for appt in appointments for t in appt.treatments]
+    return render_template("patient_dashboard.html", patient=patient, appointments=appointments, treatments=treatments)
+
+@app.route("/doctor/update_history", methods=["POST"])
+@login_required
+def update_history():
+    if current_user.type != "doctor":
+        return "Forbidden", 403
+
+    appt_id = request.form.get("appointment_id")
+    visit_type = request.form.get("visit_type")
+    test_done = request.form.get("test_done")
+    diagnosis = request.form.get("diagnosis")
+    prescription = request.form.get("prescription")
+    medicines = request.form.get("medicines")
+
+    # Create Treatment entry linked to appointment
+    appointment = Appointment.query.get_or_404(appt_id)
+    treatment = Treatment(
+        appointment=appointment,
+        diagnosis=diagnosis,
+        prescription=prescription,
+        notes=f"VisitType: {visit_type}, Test: {test_done}, Medicines: {medicines}"
+    )
+    db.session.add(treatment)
+    db.session.commit()
+
+    flash("Patient history updated successfully", "success")
+    return redirect(url_for("doctor_dashboard"))
 
 
-# ---------- Admin Functions ----------
-@app.route("/admin/add_doctor", methods=["GET", "POST"])
-def add_doctor():
-    if session.get("role") != "ADMIN":
-        flash("❌ Unauthorized", "danger")
-        return redirect(url_for("home"))
+@app.route("/doctor/save_availability", methods=["POST"])
+@login_required
+def save_availability():
+    if current_user.type != "doctor":
+        return "Forbidden", 403
 
-    departments = Department.query.all()
+    doctor_id = request.form.get("doctor_id")
+    slots = request.form.getlist("slots")  # e.g., ["2025-01-21-morning-1", "2025-01-22-evening-0"]
 
-    if request.method == "POST":
-        first_name = request.form["first_name"]
-        last_name = request.form["last_name"]
-        email = request.form["email"]
-        phone = request.form["phone"]
-        license_number = request.form["license_number"]
-        specialization_id = request.form["specialization_id"]
-        username = request.form["username"]
-        password = request.form["password"]
+    for slot in slots:
+        date_str, session, flag = slot.split("-")
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        is_avail = flag == "1"
 
-        # Create Doctor
-        doctor = Doctor(first_name=first_name, last_name=last_name,
-                        email=email, phone=phone, license_number=license_number,
-                        specialization_id=specialization_id)
-        db.session.add(doctor)
-        db.session.flush()
+        # Upsert availability
+        record = DoctorAvailability.query.filter_by(doctor_id=doctor_id, date=date_obj, session=session).first()
+        if record:
+            record.is_available = is_avail
+        else:
+            db.session.add(DoctorAvailability(
+                doctor_id=doctor_id,
+                date=date_obj,
+                session=session,
+                is_available=is_avail
+            ))
 
-        # Create User
-        user = User(username=username, password=password, role=Role.DOCTOR, doctor_id=doctor.id)
-        db.session.add(user)
-        db.session.commit()
+    db.session.commit()
+    flash("Availability saved successfully", "success")
+    return redirect(url_for("doctor_dashboard"))
 
-        flash("✅ Doctor added successfully!", "success")
-        return redirect(url_for("admin_dashboard"))
+# @app.route("/doctor/availability")
+# @login_required
+# def doctor_availability():
+#     if current_user.type != "doctor":
+#         return "Forbidden", 403
 
-    return render_template("add_doctor.html", departments=departments)
+#     # example: always render current week (Mon → Sun)
+#     today = datetime.today().date()
+#     week_start = today - timedelta(days=today.weekday())
 
+#     # Load availability + check if any slot is already booked
+#     records = DoctorAvailability.query.filter_by(doctor_id=current_user.id).all()
+#     avail_map = {}
+#     for rec in records:
+#         booked = Appointment.query.filter_by(
+#             doctor_id=current_user.id,
+#             date=rec.date,
+#             # match morning/evening ranges
+#         ).count() > 0
 
+#         avail_map[(rec.date, rec.session)] = {
+#             "is_available": rec.is_available,
+#             "booked": booked
+#         }
+
+#     return render_template("availability.html", week_start=week_start, avail_map=avail_map)
+@app.route("/availability/<int:doctor_id>")
+def availability(doctor_id):
+    start = date.today()
+    days = [start + timedelta(days=i) for i in range(90)]
+
+    # Fetch existing availability from DB
+    avail_records = Availability.query.filter(
+        Availability.doctor_id == doctor_id,
+        Availability.date.between(start, days[-1])
+    ).all()
+
+    # Map: {date: {session: available}}
+    slots = {d.isoformat(): {"morning": False, "afternoon": False, "evening": False}
+             for d in days}
+
+    for rec in avail_records:
+        slots[rec.date.isoformat()][rec.session] = rec.available
+
+    return render_template("availability.html", days=days, slots=slots, doctor_id=doctor_id)
+@app.route("/update_slot/<int:doctor_id>", methods=["POST"])
+@login_required
+def update_slot(doctor_id):
+    data = request.get_json()
+    date_str = data["date"]
+    session = data["session"]
+    available = data["available"]
+
+    rec = Availability.query.filter_by(
+        doctor_id=doctor_id, date=date.fromisoformat(date_str), session=session
+    ).first()
+
+    if not rec:
+        rec = Availability(
+            doctor_id=doctor_id,
+            date=date.fromisoformat(date_str),
+            session=session,
+            available=available
+        )
+        db.session.add(rec)
+    else:
+        rec.available = available
+
+    db.session.commit()
+    return jsonify({"status": "ok"})
 
 if __name__ == "__main__":
     app.run(debug=True)

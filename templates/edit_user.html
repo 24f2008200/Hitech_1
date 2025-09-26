@@ -4,6 +4,7 @@
   <h2>Edit User: {{ user.username }}</h2>
 
   <form method="POST">
+    {{ csrf_token() }}
     <!-- Core User Fields -->
     <div class="mb-3">
       <label for="username" class="form-label">Username</label>

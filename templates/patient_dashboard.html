@@ -1,29 +1,79 @@
-{% extends "base.html" %}
-{% block content %}
-<h2>Patient Dashboard</h2>
-<h4>Welcome {{ patient.first_name }} {{ patient.last_name }}</h4>
+{% extends "index.html" %}
 
-<h5>Your Appointments</h5>
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>Doctor</th>
-      <th>Department</th>
-      <th>Date</th>
-      <th>Time</th>
-      <th>Status</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for appt in appointments %}
-    <tr>
-      <td>Dr. {{ appt.doctor.first_name }} {{ appt.doctor.last_name }}</td>
-      <td>{{ appt.doctor.department.name if appt.doctor.department else "N/A" }}</td>
-      <td>{{ appt.date }}</td>
-      <td>{{ appt.time }}</td>
-      <td>{{ appt.status.value }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block title %}Patient Dashboard - HMS{% endblock %}
+
+{% block content %}
+<div class="border rounded shadow p-4">
+  <h2 class="mb-4 text-center">Patient Dashboard</h2>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="patientTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments" type="button" role="tab">My Appointments</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="treatments-tab" data-bs-toggle="tab" data-bs-target="#treatments" type="button" role="tab">My Treatments</button>
+    </li>
+  </ul>
+
+  <div class="tab-content mt-3">
+
+    <!-- My Appointments -->
+    <div class="tab-pane fade show active" id="appointments" role="tabpanel">
+      <div style="max-height: 300px; overflow-y: auto;">
+        <table class="table table-hover table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Doctor</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for appt in appointments %}
+            <tr>
+              <td>{{ appt.id }}</td>
+              <td>{{ appt.doctor.name }}</td>
+              <td>{{ appt.date }}</td>
+              <td>{{ appt.time }}</td>
+              <td>{{ appt.status.value }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- My Treatments -->
+    <div class="tab-pane fade" id="treatments" role="tabpanel">
+      <div style="max-height: 300px; overflow-y: auto;">
+        <table class="table table-hover table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>ID</th>
+              <th>Diagnosis</th>
+              <th>Prescription</th>
+              <th>Notes</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tr in treatments %}
+            <tr>
+              <td>{{ tr.id }}</td>
+              <td>{{ tr.diagnosis }}</td>
+              <td>{{ tr.prescription }}</td>
+              <td>{{ tr.notes }}</td>
+              <td>{{ tr.performed_at }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
 {% endblock %}

@@ -1,72 +1,80 @@
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 import enum
-import hashlib
-from datetime import datetime, date, time
+from datetime import datetime
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 
-# ----------------------------------
-# App & DB Config
-# ----------------------------------
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///api_database.sqlite3'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy()
 
-db = SQLAlchemy(app)
-
-
-# ----------------------------------
-# Helper
-# ----------------------------------
-def hash_password(plain: str) -> str:
-    return hashlib.sha256(plain.encode("utf-8")).hexdigest()
-
-
-# ----------------------------------
+# --------------------------
 # Enums
-# ----------------------------------
-class Role(enum.Enum):
-    ADMIN = "admin"
-    DOCTOR = "doctor"
-    PATIENT = "patient"
-
-
+# --------------------------
 class AppointmentStatus(enum.Enum):
     BOOKED = "booked"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
 
-# ----------------------------------
-# Models
-# ----------------------------------
-class User( db.Model):   # <-- inherit UserMixin
+# --------------------------
+# Base User Model
+# --------------------------
+class User(db.Model,UserMixin):
+    __tablename__ = "users"
+
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(100), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
-    role = db.Column(db.Enum(Role), nullable=False)
-    is_active = db.Column(db.Boolean, default=True)   # new
-    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=True)
-    doctor_id = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
+    last_name = db.Column(db.String(100))
+    dob = db.Column(db.Date)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    phone = db.Column(db.String(50))
+    address = db.Column(db.Text)
+    role = db.Column(db.String(10))
 
-    def __init__(self, username, password, role, patient_id=None, doctor_id=None):
-        self.username = username
+    password_hash = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), default="active")  # active / blacklisted
+
+    type = db.Column(db.String(50))  # discriminator column
+
+    __mapper_args__ = {
+        "polymorphic_identity": "user",
+        "polymorphic_on": type,
+    }
+
+    def __init__(self, name, email, password, last_name=None, dob=None, phone=None, address=None):
+        self.name = name
+        self.email = email
+        self.last_name = last_name
+        self.dob = dob
+        self.phone = phone
+        self.address = address
         self.set_password(password)
-        self.role = role
-        self.patient_id = patient_id
-        self.doctor_id = doctor_id
-        self.is_active = True
+
+    def set_password(self, plain_password: str):
+        self.password_hash = generate_password_hash(plain_password)
+
+    def check_password(self, plain_password: str) -> bool:
+        return check_password_hash(self.password_hash, plain_password)
 
 
-    def set_password(self, plain: str):
-        self.password_hash = hashlib.sha256(plain.encode("utf-8")).hexdigest()
+# --------------------------
+# Admin
+# --------------------------
+class Admin(User):
+    __tablename__ = "admins"
 
-    def check_password(self, plain: str) -> bool:
-        print(self.password_hash)
-        print(hashlib.sha256(plain.encode("utf-8")).hexdigest())
-        return self.password_hash == hashlib.sha256(plain.encode("utf-8")).hexdigest()
+    id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+
+    __mapper_args__ = {
+        "polymorphic_identity": "admin",
+    }
 
 
+# --------------------------
+# Department
+# --------------------------
 class Department(db.Model):
+    __tablename__ = "departments"
+
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), unique=True, nullable=False)
     description = db.Column(db.Text)
@@ -74,39 +82,50 @@ class Department(db.Model):
     doctors = db.relationship("Doctor", back_populates="department")
 
 
-class Doctor(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(100), nullable=False)
-    last_name = db.Column(db.String(100))
-    email = db.Column(db.String(200), unique=True)
-    phone = db.Column(db.String(50))
-    license_number = db.Column(db.String(100), unique=True)
+# --------------------------
+# Doctor
+# --------------------------
+class Doctor(User):
+    __tablename__ = "doctors"
 
-    specialization_id = db.Column(db.Integer, db.ForeignKey("department.id"))
+    id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+    department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
+
     department = db.relationship("Department", back_populates="doctors")
-
-    appointments = db.relationship("Appointment", back_populates="doctor", cascade="all, delete-orphan")
-    user = db.relationship("User", backref="doctor_account", uselist=False)
-
-
-class Patient(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    first_name = db.Column(db.String(100), nullable=False)
-    last_name = db.Column(db.String(100))
-    dob = db.Column(db.Date)
-    email = db.Column(db.String(200), unique=True)
-    phone = db.Column(db.String(50))
-    address = db.Column(db.Text)
-
-    appointments = db.relationship("Appointment", back_populates="patient", cascade="all, delete-orphan")
-    user = db.relationship("User", backref="patient_account", uselist=False)
+    appointments = db.relationship("Appointment", back_populates="doctor")
+    availability = db.relationship("Availability", back_populates="doctor", cascade="all, delete-orphan")
 
 
+    __mapper_args__ = {
+        "polymorphic_identity": "doctor",
+    }
+
+
+# --------------------------
+# Patient
+# --------------------------
+class Patient(User):
+    __tablename__ = "patients"
+
+    id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+    medical_history = db.Column(db.Text)
+
+    appointments = db.relationship("Appointment", back_populates="patient")
+
+    __mapper_args__ = {
+        "polymorphic_identity": "patient",
+    }
+
+
+# --------------------------
+# Appointment
+# --------------------------
 class Appointment(db.Model):
+    __tablename__ = "appointments"
+
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey("patient.id"), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey("doctor.id"), nullable=False)
-    department_id = db.Column(db.Integer, db.ForeignKey("department.id"), nullable=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
 
     date = db.Column(db.Date, nullable=False)
     time = db.Column(db.Time, nullable=False)
@@ -117,10 +136,31 @@ class Appointment(db.Model):
     doctor = db.relationship("Doctor", back_populates="appointments")
     treatments = db.relationship("Treatment", back_populates="appointment", cascade="all, delete-orphan")
 
-
-class Treatment(db.Model):
+class Availability(db.Model):
+    __tablename__ = "availability"
     id = db.Column(db.Integer, primary_key=True)
-    appointment_id = db.Column(db.Integer, db.ForeignKey("appointment.id"), nullable=False)
+
+    doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    session = db.Column(db.String(20), nullable=False)   # morning / afternoon / evening
+    available = db.Column(db.Boolean, default=False, nullable=False)
+
+    # ensure uniqueness of (doctor_id, date, session)
+    __table_args__ = (
+        db.UniqueConstraint("doctor_id", "date", "session", name="unique_doctor_slot"),
+    )
+
+    # relationship back to Doctor
+    doctor = db.relationship("Doctor", back_populates="availability")
+
+# --------------------------
+# Treatment
+# --------------------------
+class Treatment(db.Model):
+    __tablename__ = "treatments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey("appointments.id"), nullable=False)
     diagnosis = db.Column(db.Text)
     prescription = db.Column(db.Text)
     notes = db.Column(db.Text)
