@@ -1,0 +1,58 @@
+{% extends "index.html" %}
+
+{% block title %}Doctor Dashboard - HMS{% endblock %}
+{% block styles %}
+<style>
+  .btn-available {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .btn-unavailable {
+    background-color: #dc3545;
+    color: white;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Department of {{ department.name }}</h3>
+        <div>
+            <a href="{{ url_for('patient_history') }}" class="me-3">History</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+
+    <h5>Overview</h5>
+    <p>{{ department.description }}</p>
+
+    <h5 class="mt-4">Doctors' list</h5>
+    <div class="list-group">
+        {% for doctor in doctors %}
+        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+            <span><strong>Dr. {{ doctor.name }}</strong></span>
+            <div>
+                <a href="{{ url_for('doctor_availability', doctor_id=doctor.id) }}"
+                   class="btn btn-outline-primary btn-sm me-2">Check Availability</a>
+                <a href="{{ url_for('doctor_details', doctor_id=doctor.id) }}"
+                   class="btn btn-outline-secondary btn-sm">View Details</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  function showUpdateForm(apptId, patientName, deptName) {
+    // Set values dynamically
+    document.getElementById("appointmentId").value = apptId;
+    document.getElementById("patientName").textContent = patientName;
+    document.getElementById("departmentName").textContent = deptName;
+
+    document.getElementById("updateForm").classList.remove("d-none"); // show form
+    document.getElementById("updateForm").scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+{% endblock %}

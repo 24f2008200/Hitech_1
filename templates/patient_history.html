@@ -1,0 +1,75 @@
+{% extends "index.html" %}
+
+{% block title %}Doctor Dashboard - HMS{% endblock %}
+{% block styles %}
+<style>
+  .btn-available {
+    background-color: #28a745;
+    color: white;
+  }
+
+  .btn-unavailable {
+    background-color: #dc3545;
+    color: white;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="table-responsive mt-3">
+    <h3>{{patient.name}}'s History </h3>
+    <table class="table table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Visit No.</th>
+                <th>Visit Type</th>
+                <th>Tests Done</th>
+                <th>Diagnosis</th>
+                <th>Prescription</th>
+                <th>Medicines</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for visit in visits %}
+            <tr>
+                <td>{{ loop.index + ((page-1)*10) }}.</td>
+                <td>{{ visit.visit_type }}</td>
+                <td>{{ visit.tests }}</td>
+                <td>{{ visit.diagnosis }}</td>
+                <td>{{ visit.prescription }}</td>
+                <td>{{ visit.medicines }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination controls -->
+<nav>
+  <ul class="pagination justify-content-center">
+    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('patient_history', patient_id=patient_id, page=page-1) }}">Previous</a>
+    </li>
+
+    {% for p in range(1, total_pages+1) %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="{{ url_for('patient_history', patient_id=patient_id, page=p) }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('patient_history', patient_id=patient_id, page=page+1) }}">Next</a>
+    </li>
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+    </li>
+  </ul>
+  <form action="{{return_address }}" method="get" style="display:inline;">
+    <button type="submit" class="btn btn-primary">Home</button>
+</form>
+</nav>
+
+{% endblock %}
+{% block scripts %}
+<script>
+
+  </script>
+{% endblock %}

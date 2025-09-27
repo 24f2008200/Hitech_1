@@ -165,5 +165,7 @@ class Treatment(db.Model):
     prescription = db.Column(db.Text)
     notes = db.Column(db.Text)
     performed_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    visit_type = db.Column(db.Text)
+    tests = db.Column(db.Text)
+    medicines = db.Column(db.Text)
     appointment = db.relationship("Appointment", back_populates="treatments")

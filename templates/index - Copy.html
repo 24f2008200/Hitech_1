@@ -60,22 +60,21 @@
           <!-- Admin only -->
           {% if current_user.is_authenticated and current_user.role == 'admin' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Home</a>
+            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a>
           </li>
           {% endif %}
 
           <!-- Doctor only -->
           {% if current_user.is_authenticated and current_user.role == 'doctor' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('doctor_dashboard') }}">Home</a>
-            <a class="nav-link" href="{{ url_for('availability') }}">Availability</a>
+            <a class="nav-link" href="{{ url_for('doctor_dashboard') }}">Doctor</a>
           </li>
           {% endif %}
 
           <!-- Patient only -->
           {% if current_user.is_authenticated and current_user.role == 'patient' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('patient_dashboard') }}">Home</a>
+            <a class="nav-link" href="{{ url_for('patient_dashboard') }}">Patient</a>
           </li>
           {% endif %}
 

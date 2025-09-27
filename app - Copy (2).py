@@ -9,6 +9,7 @@ from package.routes.auth import admin_required,  doctor_required, patient_requir
 from flask_wtf import CSRFProtect
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from datetime import datetime ,timedelta ,date
+from collections import defaultdict
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database.sqlite3"
@@ -83,24 +84,8 @@ def doctor_dashboard():
 def patient_dashboard():
     patient =  current_user
     appointments = patient.appointments
-    departments = Department.query.all()
     treatments = [t for appt in appointments for t in appt.treatments]
-    return render_template("patient_dashboard.html", patient=patient, appointments=appointments,\
-                            treatments=treatments,departments=departments)
-@app.route("/department_details/<int:dept_id>")
-@login_required
-def department_details():
-
-    department = Department.query.get_or_404(dept_id)
-    doctors = Doctor.query.filter_by(department_id=dept_id).all()
-
-    return render_template(
-        "department_details.html",
-        department=department,
-        doctors=doctors
-    )
-
-
+    return render_template("patient_dashboard.html", patient=patient, appointments=appointments, treatments=treatments)
 
 @app.route("/doctor/update_history", methods=["POST"])
 @login_required
@@ -118,13 +103,10 @@ def update_history():
     # Create Treatment entry linked to appointment
     appointment = Appointment.query.get_or_404(appt_id)
     treatment = Treatment(
-        appointment=appointment,
-        diagnosis=diagnosis,
-        prescription=prescription,
-        visit_type =visit_type,
-        tests=test_done,
-        medicines= medicines,
-        notes=f"VisitType: {visit_type}, Test: {test_done}, Medicines: {medicines}"
+        appointment = appointment,
+        diagnosis = diagnosis,
+        prescription = prescription,
+        notes =f"VisitType: {visit_type}, Test: {test_done}, Medicines: {medicines}"
     )
     db.session.add(treatment)
     db.session.commit()
@@ -163,12 +145,41 @@ def save_availability():
 
 
     db.session.commit()
-    return jsonify({"status": "success", "message": "Availability saved successfully"})
+    print("done")
+    flash("Availability saved successfully", "success")
+    return redirect(url_for("doctor_dashboard"))
 
-
-@app.route("/availability")
-def availability():
+@app.route("/doctor/availability")
+@login_required
+def doctor_availability():
     doctor_id = current_user.id
+    start = date.today()
+    days = [start + timedelta(days=i) for i in range(90)]
+
+    # Fetch existing availability from DB
+    avail_records = Availability.query.filter(
+        Availability.doctor_id == doctor_id,
+        Availability.date.between(start, days[-1])
+    ).all()
+
+    # Map: {date: {session: available}}
+    slots = {d.isoformat(): {"morning": False, "afternoon": False, "evening": False}
+             for d in days}
+
+    # Group days by month
+    months = defaultdict(list)
+    for d in days:
+        months[d.strftime("%B %Y")].append(d)
+
+    return render_template(
+        "availability.html",
+        months=months,
+        slots=slots,
+        doctor_id=current_user.id
+    )
+
+@app.route("/availability/<int:doctor_id>")
+def availability(doctor_id):
     start = date.today()
     days = [start + timedelta(days=i) for i in range(90)]
 
@@ -186,56 +197,6 @@ def availability():
         slots[rec.date.isoformat()][rec.session] = rec.available
 
     return render_template("availability.html", days=days, slots=slots, doctor_id=doctor_id)
-
-
-@app.route("/patient/history/<int:patient_id>")
-def patient_history(patient_id):
-    # pagination settings
-    page = request.args.get("page", 1, type=int)
-    per_page = 10   # visits per page
-
-    # Fetch from DB (example, replace with ORM query)
-    patient = Patient.query.get_or_404(patient_id)
-    treatments = [
-        appt.treatments
-        for appt in patient.appointments
-        if appt.treatments is not None
-    ]
-    for t in treatments:
-        print (t)
-    all_visits = []
-    for treatment_list in treatments:
-        for tr in treatment_list:
-            all_visits.append({
-                "visit_type": tr.visit_type,
-                "diagnosis": tr.diagnosis,
-                "prescription": tr.prescription,
-                "medicines": tr.medicines,
-                "tests": tr.tests
-            })
-
-    total = len(all_visits)
-    start = (page - 1) * per_page
-    end = start + per_page
-    visits = all_visits[start:end]
-
-    total_pages = (total + per_page - 1) // per_page  # ceil division
-
-
-    doctor = current_user
-
-
-    return render_template("patient_history.html",
-                           patient=patient,
-                           doctor=doctor,
-                           visits=visits,
-                           page=page,
-                           total_pages=total_pages,
-                           patient_id=patient_id,
-                           return_address =  url_for('doctor_dashboard')
-                           )
-
-
 @app.route("/update_slot/<int:doctor_id>", methods=["POST"])
 @login_required
 def update_slot(doctor_id):

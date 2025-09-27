@@ -174,7 +174,9 @@ class Treatment(db.Model):
     prescription = db.Column(db.Text)
     notes = db.Column(db.Text)
     performed_at = db.Column(db.DateTime, default=datetime.utcnow)
-
+    visit_type = db.Column(db.Text)
+    tests = db.Column(db.Text)
+    medicines = db.Column(db.Text)
     appointment = db.relationship("Appointment", back_populates="treatments")
 
 # --------------------------
@@ -263,6 +265,9 @@ with app.app_context():
             appointment=random.choice(appointments),
             diagnosis=fake.sentence(),
             prescription=fake.sentence(),
+            tests =random.choice(["ECG","Blood","Corona"]),
+            visit_type =fake.text(max_nb_chars=100),
+            medicines =fake.text(max_nb_chars=100),
             notes=fake.text(max_nb_chars=100)
         )
         db.session.add(tr)

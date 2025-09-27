@@ -83,24 +83,8 @@ def doctor_dashboard():
 def patient_dashboard():
     patient =  current_user
     appointments = patient.appointments
-    departments = Department.query.all()
     treatments = [t for appt in appointments for t in appt.treatments]
-    return render_template("patient_dashboard.html", patient=patient, appointments=appointments,\
-                            treatments=treatments,departments=departments)
-@app.route("/department_details/<int:dept_id>")
-@login_required
-def department_details():
-
-    department = Department.query.get_or_404(dept_id)
-    doctors = Doctor.query.filter_by(department_id=dept_id).all()
-
-    return render_template(
-        "department_details.html",
-        department=department,
-        doctors=doctors
-    )
-
-
+    return render_template("patient_dashboard.html", patient=patient, appointments=appointments, treatments=treatments)
 
 @app.route("/doctor/update_history", methods=["POST"])
 @login_required
@@ -121,9 +105,6 @@ def update_history():
         appointment=appointment,
         diagnosis=diagnosis,
         prescription=prescription,
-        visit_type =visit_type,
-        tests=test_done,
-        medicines= medicines,
         notes=f"VisitType: {visit_type}, Test: {test_done}, Medicines: {medicines}"
     )
     db.session.add(treatment)
@@ -163,12 +144,38 @@ def save_availability():
 
 
     db.session.commit()
-    return jsonify({"status": "success", "message": "Availability saved successfully"})
+    print("done")
+    flash("Availability saved successfully", "success")
+    return redirect(url_for("doctor_dashboard"))
 
+# @app.route("/doctor/availability")
+# @login_required
+# def doctor_availability():
+#     if current_user.type != "doctor":
+#         return "Forbidden", 403
 
-@app.route("/availability")
-def availability():
-    doctor_id = current_user.id
+#     # example: always render current week (Mon → Sun)
+#     today = datetime.today().date()
+#     week_start = today - timedelta(days=today.weekday())
+
+#     # Load availability + check if any slot is already booked
+#     records = DoctorAvailability.query.filter_by(doctor_id=current_user.id).all()
+#     avail_map = {}
+#     for rec in records:
+#         booked = Appointment.query.filter_by(
+#             doctor_id=current_user.id,
+#             date=rec.date,
+#             # match morning/evening ranges
+#         ).count() > 0
+
+#         avail_map[(rec.date, rec.session)] = {
+#             "is_available": rec.is_available,
+#             "booked": booked
+#         }
+
+#     return render_template("availability.html", week_start=week_start, avail_map=avail_map)
+@app.route("/availability/<int:doctor_id>")
+def availability(doctor_id):
     start = date.today()
     days = [start + timedelta(days=i) for i in range(90)]
 
@@ -186,56 +193,6 @@ def availability():
         slots[rec.date.isoformat()][rec.session] = rec.available
 
     return render_template("availability.html", days=days, slots=slots, doctor_id=doctor_id)
-
-
-@app.route("/patient/history/<int:patient_id>")
-def patient_history(patient_id):
-    # pagination settings
-    page = request.args.get("page", 1, type=int)
-    per_page = 10   # visits per page
-
-    # Fetch from DB (example, replace with ORM query)
-    patient = Patient.query.get_or_404(patient_id)
-    treatments = [
-        appt.treatments
-        for appt in patient.appointments
-        if appt.treatments is not None
-    ]
-    for t in treatments:
-        print (t)
-    all_visits = []
-    for treatment_list in treatments:
-        for tr in treatment_list:
-            all_visits.append({
-                "visit_type": tr.visit_type,
-                "diagnosis": tr.diagnosis,
-                "prescription": tr.prescription,
-                "medicines": tr.medicines,
-                "tests": tr.tests
-            })
-
-    total = len(all_visits)
-    start = (page - 1) * per_page
-    end = start + per_page
-    visits = all_visits[start:end]
-
-    total_pages = (total + per_page - 1) // per_page  # ceil division
-
-
-    doctor = current_user
-
-
-    return render_template("patient_history.html",
-                           patient=patient,
-                           doctor=doctor,
-                           visits=visits,
-                           page=page,
-                           total_pages=total_pages,
-                           patient_id=patient_id,
-                           return_address =  url_for('doctor_dashboard')
-                           )
-
-
 @app.route("/update_slot/<int:doctor_id>", methods=["POST"])
 @login_required
 def update_slot(doctor_id):

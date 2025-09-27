@@ -205,11 +205,13 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
                 credentials: "include"
-            }).then(res => res.json())
-                .then(data => {
-                    alert(data.message); // or show bootstrap toast
-                    window.location.href = "/doctor/dashboard"; // manual redirect
-                });
+            }).then(res => {
+                if (res.ok) {
+                    // alert("Availability saved!");
+                } else {
+                    alert("Error saving availability");
+                }
+            });
         });
 
         // Exit button
