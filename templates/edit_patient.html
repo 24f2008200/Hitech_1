@@ -6,8 +6,7 @@
   </div>
   <div class="card-body">
     <form method="post">
-      {{ csrf_token() }}
-      <div class="row mb-3">
+        <div class="row mb-3">
         <div class="col">
           <label class="form-label">First name</label>
           <input type="text" name="first_name" class="form-control" value="{{ patient.first_name }}" required>

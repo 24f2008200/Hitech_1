@@ -1,97 +1,12 @@
-{% extends "base.html" %}
+{% extends "index.html" %}
 
 {% block title %}Doctor Dashboard - HMS{% endblock %}
+{% block styles %}
 
+{% endblock %}
 {% block content %}
-<div class="border rounded shadow p-4">
-  <h2 class="mb-4 text-center">Dr. {{ doctor.name }}'s Dashboard</h2>
 
-  <!-- Tabs -->
-  <ul class="nav nav-tabs">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#appointments">My Appointments</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#patients">My Patients</button></li>
-  </ul>
+{% endblock %}
+{% block scripts %}
 
-  <div class="tab-content mt-3">
-    <!-- Appointments -->
-    <div class="tab-pane fade show active" id="appointments">
-      <table class="table table-bordered table-hover">
-        <thead class="table-light">
-          <tr>
-            <th>ID</th><th>Patient</th><th>Date</th><th>Time</th><th>Status</th><th>Reason</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for appt in appointments %}
-          <tr>
-            <td>{{ appt.id }}</td>
-            <td>{{ appt.patient.name }}</td>
-            <td>{{ appt.date }}</td>
-            <td>{{ appt.time }}</td>
-            <td>{{ appt.status.value }}</td>
-            <td>{{ appt.reason }}</td>
-            <td>
-              <button class="btn btn-info btn-sm" onclick="showUpdateForm({{ appt.id }}, '{{ appt.patient.name }}', '{{ doctor.department.name if doctor.department else 'N/A' }}')">Update</button>
-              <button class="btn btn-success btn-sm">Close</button>
-              <button class="btn btn-danger btn-sm">Cancel</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Hidden Update Form -->
-    <div class="tab-pane fade" id="updateForm">
-      <h4 class="mb-3">Update Patient History</h4>
-      <form id="historyForm" method="POST" action="{{ url_for('update_history') }}">
-        <input type="hidden" name="appointment_id" id="appointmentId">
-
-        <p><strong>Patient Name:</strong> <span id="patientName"></span></p>
-        <p><strong>Department:</strong> <span id="departmentName"></span></p>
-
-        <div class="row mb-2">
-          <div class="col">
-            <label>Visit Type</label>
-            <input type="text" class="form-control" name="visit_type">
-          </div>
-          <div class="col">
-            <label>Test Done</label>
-            <input type="text" class="form-control" name="test_done">
-          </div>
-        </div>
-
-        <div class="mb-2">
-          <label>Diagnosis</label>
-          <input type="text" class="form-control" name="diagnosis">
-        </div>
-
-        <div class="mb-2">
-          <label>Prescription</label>
-          <input type="text" class="form-control" name="prescription">
-        </div>
-
-        <div class="mb-2">
-          <label>Medicines</label>
-          <textarea class="form-control" name="medicines" placeholder="e.g., Medicine 1 1-0-1, Medicine 2 0-1-1"></textarea>
-        </div>
-
-        <button type="submit" class="btn btn-success">Save</button>
-      </form>
-    </div>
-  </div>
-</div>
-
-<script>
-function showUpdateForm(apptId, patientName, deptName) {
-  // Set values dynamically
-  document.getElementById("appointmentId").value = apptId;
-  document.getElementById("patientName").textContent = patientName;
-  document.getElementById("departmentName").textContent = deptName;
-
-  // Switch tab to Update form
-  var updateTab = new bootstrap.Tab(document.querySelector('#updateForm'));
-  updateTab.show();
-}
-</script>
 {% endblock %}

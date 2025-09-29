@@ -34,6 +34,25 @@
       margin-top: auto;
       /* stick to bottom */
     }
+
+    .scroll-table {
+      max-height: 350px;
+      /* Adjust scroll height */
+      overflow-y: auto;
+    }
+
+    .scroll-table table {
+      margin-bottom: 0;
+      /* Remove extra spacing */
+    }
+
+    .scroll-table thead th {
+      position: sticky;
+      top: 0;
+      background: #f8f9fa;
+      /* Match Bootstrap table header */
+      z-index: 2;
+    }
   </style>
   {% block styles %}{% endblock %}
 
@@ -46,6 +65,11 @@
   <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('index') }}">HMS</a>
+      {% if current_user.is_authenticated %}
+      <h2 class="mb-0">{{ current_user.name }}'s Dashboard</h2>
+      {%else%}
+      <h2 class="mb-0">Welcome Guest</h2>
+      {% endif %}
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -53,14 +77,20 @@
         <ul class="navbar-nav ms-auto">
 
           <!-- Always visible -->
-          <li class="nav-item">
+          <!-- <li class="nav-item">
             <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-          </li>
+          </li> -->
 
           <!-- Admin only -->
           {% if current_user.is_authenticated and current_user.role == 'admin' %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('add_department') }}">Add Dept</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('add_doctor') }}">Add Doc</a>
           </li>
           {% endif %}
 
@@ -77,10 +107,16 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('patient_dashboard') }}">Home</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('patient_history' ,patient_id=current_user.id) }}">History</a>
+          </li>
           {% endif %}
 
           <!-- Logged-in users see logout -->
           {% if current_user.is_authenticated %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">Edit Profile</a>
+          </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
           </li>

@@ -5,6 +5,7 @@ from faker import Faker
 import random
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 
 
 
@@ -22,7 +23,7 @@ class AppointmentStatus(enum.Enum):
 # --------------------------
 # Base User Model
 # --------------------------
-class User(db.Model):
+class User(db.Model,UserMixin):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -38,13 +39,13 @@ class User(db.Model):
     status = db.Column(db.String(20), default="active")  # active / blacklisted
 
     type = db.Column(db.String(50))  # discriminator column
+
     __mapper_args__ = {
         "polymorphic_identity": "user",
         "polymorphic_on": type,
-    } 
+    }
 
-    def __init__(self, name, email, password, last_name=None, dob=None, 
-                 phone=None, address=None,role = "user",**kwargs):
+    def __init__(self, name, email, password, last_name=None, dob=None, phone=None, address=None ,role ="user"):
         self.name = name
         self.email = email
         self.last_name = last_name
@@ -53,7 +54,6 @@ class User(db.Model):
         self.address = address
         self.role = role
         self.set_password(password)
-        super().__init__(**kwargs)
 
     def set_password(self, plain_password: str):
         self.password_hash = generate_password_hash(plain_password)
@@ -73,6 +73,8 @@ class Admin(User):
     __mapper_args__ = {
         "polymorphic_identity": "admin",
     }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
 # --------------------------
@@ -101,13 +103,14 @@ class Doctor(User):
     appointments = db.relationship("Appointment", back_populates="doctor")
     availability = db.relationship("Availability", back_populates="doctor", cascade="all, delete-orphan")
 
+
     __mapper_args__ = {
         "polymorphic_identity": "doctor",
     }
-    def __init__(self, name, email, password, department, **kwargs):
-        super().__init__(name=name, email=email, password=password, **kwargs)
-        self.department = department
 
+    def __init__(self, **kwargs):
+        self.department = kwargs.pop("department", None)
+        super().__init__(**kwargs)
 
 # --------------------------
 # Patient
@@ -123,6 +126,9 @@ class Patient(User):
     __mapper_args__ = {
         "polymorphic_identity": "patient",
     }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
 
 
 # --------------------------
@@ -139,11 +145,12 @@ class Appointment(db.Model):
     time = db.Column(db.Time, nullable=False)
     status = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.BOOKED, nullable=False)
     reason = db.Column(db.Text)
+    availability_id = db.Column(db.Integer, db.ForeignKey("availability.id"), nullable=False)
 
     patient = db.relationship("Patient", back_populates="appointments")
     doctor = db.relationship("Doctor", back_populates="appointments")
     treatments = db.relationship("Treatment", back_populates="appointment", cascade="all, delete-orphan")
-
+    availability = db.relationship("Availability", back_populates="appointments")
 
 class Availability(db.Model):
     __tablename__ = "availability"
@@ -151,7 +158,7 @@ class Availability(db.Model):
 
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    session = db.Column(db.String(20), nullable=False)   # morning / afternoon / evening
+    session = db.Column(db.String(20), nullable=False)   # morning /  evening
     available = db.Column(db.Boolean, default=False, nullable=False)
 
     # ensure uniqueness of (doctor_id, date, session)
@@ -161,6 +168,12 @@ class Availability(db.Model):
 
     # relationship back to Doctor
     doctor = db.relationship("Doctor", back_populates="availability")
+    appointments = db.relationship("Appointment", back_populates="availability", cascade="all, delete-orphan")
+
+    @property
+    def is_busy(self):
+        """Session is busy if any active appointment exists."""
+        return any(appt.status == "active" for appt in self.appointments)
 
 # --------------------------
 # Treatment
@@ -243,17 +256,39 @@ with app.app_context():
 
     db.session.commit()
 
+    availabilities = []
+    sessions = ["morning", "evening"]
+
+    for doctor in doctors:
+        for i in range(5):  # next 5 days
+            for session in sessions:
+                avail = Availability(
+                    doctor=doctor,
+                    date=(datetime.today() + timedelta(days=i)).date(),
+                    session=session,
+                    available=True
+                )
+                db.session.add(avail)
+                availabilities.append(avail)
+
+    db.session.commit()
+
+
     # 10 Appointments
     appointments = []
-    for i in range(10):
+    for i in range(10):  # generate 10 appointments
+        avail = random.choice(availabilities)  # pick an availability slot
+
         appt = Appointment(
             patient=random.choice(patients),
-            doctor=random.choice(doctors),
-            date=(datetime.today() + timedelta(days=i)).date(),
-            time=datetime.now().time(),
+            doctor=avail.doctor,         # match doctor from availability
+            date=avail.date,             # match date
+            time=datetime.now().time(),  # could also depend on session
             reason=fake.sentence(),
-            status=random.choice(list(AppointmentStatus))
+            status=random.choice(list(AppointmentStatus)),
+            availability=avail           # link relationship (auto sets availability_id)
         )
+
         db.session.add(appt)
         appointments.append(appt)
 

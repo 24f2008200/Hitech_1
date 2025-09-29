@@ -67,103 +67,19 @@ def logout():
 @app.route("/admin/dashboard")
 @admin_required
 def admin_dashboard():
-    # doctors = Doctor.query.all()
-    # patients = Patient.query.all()
-    # appointments = Appointment.query.all()
-    # return render_template("admin_dashboard.html", doctors=doctors, patients=patients, appointments=appointments)
     doctors = Doctor.query.all()
-
-    doctor_rows = []
-    for d in doctors:
-        doctor_rows.append({
-            "ID": d.id,
-            "Name": d.name,
-            "Department": d.department.name if d.department else "—",
-            "Status": d.status,
-            "Actions": [
-                {"label": "Edit", "url": url_for("edit_doctor", doctor_id=d.id), "color": "warning"},
-                {"label": "Delete", "url": url_for("delete_doctor", doctor_id=d.id), "color": "danger"},
-                {"label": "Blacklist", "url": url_for("blacklist_doctor", doctor_id=d.id), "color": "dark"},
-            ],
-        })
-
-    # Example patients tab
     patients = Patient.query.all()
-    patient_rows = [{"ID": p.id, "Name": p.name, "Status": p.status} for p in patients]
+    appointments = Appointment.query.all()
+    return render_template("admin_dashboard.html", doctors=doctors, patients=patients, appointments=appointments)
 
-    tabs = [
-        {"label": "Doctors", "columns": ["ID", "Name", "Department", "Status", "Actions"], "rows": doctor_rows},
-        {"label": "Patients", "columns": ["ID", "Name", "Status"], "rows": patient_rows},
-    ]
-
-    return render_template("dashboard_base.html", title="", tabs=tabs)
-@app.route("/admin/edit_doctor/<int:doctor_id>")
-@admin_required
-def edit_doctor(doctor_id):
-    return "toDo"
-
-@app.route("/admin/delete_doctor/<int:doctor_id>")
-@admin_required
-def delete_doctor(doctor_id):
-        return "toDo"
-
-@app.route("/admin/blacklist_doctor/<int:doctor_id>")
-@admin_required
-def blacklist_doctor(doctor_id):
-        return "toDo"
 @app.route("/doctor/dashboard")
 @doctor_required
 def doctor_dashboard():
     doctor  = current_user
     appointments = doctor.appointments
     patients = {appt.patient for appt in appointments if appt.patient is not None}  # unique patients
-    #print (patients)
-    #return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
-    appt_rows = []
-    for a in appointments :
-        if a is not None:
-            appt_rows.append({
-                "ID": a.id,
-                "Patient": a.patient.name if a.patient is not None else "",
-                "Date": a.slot.date.strftime("%Y-%m-%d"),
-                "Time": a.slot.session,
-                "Status": a.status,
-                "Reason": a.reason or "—",
-                "Actions": [
-                    {"label": "Update", "url": url_for("update_appointment",  appt_id=a.id), "color": "info"},
-                    {"label": "Close", "url": url_for("close_appointment",  appt_id=a.id), "color": "success"},
-                    {"label": "Cancel", "url": url_for("cancel_appointment",  appt_id=a.id), "color": "danger"},
-                ],
-            })
-    patient_rows = []
-    # if doctor.patients is not None:
-    #     for p in doctor.patients:
-    #         if p is not None:
-    #             patient_rows.append({"ID": p.id, "Patient": p.name, "Status": p.status} )
-  
-
-    tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Time", "Status", "Reason", "Actions"], "rows": appt_rows},
-        {"label": "My Patients", "columns": ["ID", "Patient", "Status"], "rows": patient_rows},
-    ]
-
-    return render_template("dashboard_base.html", title="", tabs=tabs)
-
-
-@app.route("/update_appointment/<int:appt_id>")
-@doctor_required
-def update_appointment(appt_id):
-    return "todo"
-
-@app.route("/close_appointment/<int:appt_id>")
-@doctor_required
-def close_appointment(appt_id):
-    return "todo"
-
-@app.route("/cancel_appointment/<int:appt_id>")
-@doctor_required
-def cancel_appointment(appt_id):
-    return "todo"
+    print (patients)
+    return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
 
 @app.route("/patient/dashboard")
 @patient_required
@@ -171,42 +87,9 @@ def patient_dashboard():
     patient =  current_user
     appointments = patient.appointments
     departments = Department.query.all()
-    treatments = [
-    t
-    for appt in (appointments or [])
-    if appt is not None
-    for t in (getattr(appt, "treatment", []) or [])
-]
-    # return render_template("patient_dashboard.html", patient=patient, appointments=appointments,\
-    #                         treatments=treatments,departments=departments)
-    appt_rows = []
-    for a in appointments:
-        appt_rows.append({
-            "ID": a.id,
-            "Doctor": a.doctor.name,
-            "Date": a.slot.date.strftime("%Y-%m-%d"),
-            "Time": a.slot.session,
-            "Status": a.status,
-        })
-    treat_rows=[]
-    for t in treatments:
-        treat_rows.append({
-            "ID":t.id,
-            "Date":t.appointment.slot.date,
-            "Doctor":t.appointment.doctor.name,
-            "Prescription":t.prescription,
-
-
-
-        })
-
-    tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Time", "Status"], "rows": appt_rows},
-        {"label": "My Treatments", "columns": ["ID", "Date", "Doctor", "Prescription"],"rows": treat_rows},
-    ]
-
-    return render_template("dashboard_base.html", title="Patient Dashboard", tabs=tabs)
-
+    treatments = [t for appt in appointments for t in appt.treatments]
+    return render_template("patient_dashboard.html", patient=patient, appointments=appointments,\
+                            treatments=treatments,departments=departments)
 @app.route("/department_details/<int:dept_id>")
 @login_required
 def department_details(dept_id):
@@ -520,59 +403,6 @@ def add_doctor():
 
     departments = Department.query.all()
     return render_template("add_doctor.html", departments=departments)
-
-@app.route("/appointments/book/<int:slot_id>", methods=["POST"])
-def book(slot_id):
-    slot = Availability.query.get_or_404(slot_id)
-    patient_id = request.form["patient_id"]
-    reason = request.form.get("reason")
-
-    try:
-        appt = slot.book(patient_id=patient_id, reason=reason)
-        db.session.commit()
-        flash("Appointment booked!", "success")
-    except ValueError as e:
-        flash(str(e), "danger")
-    return redirect(url_for("appointments.check_availability", doctor_id=slot.doctor_id))
-
-
-@app.route("/appointments/<int:appt_id>/cancel", methods=["POST"])
-def cancel(appt_id):
-    appt = Appointment.query.get_or_404(appt_id)
-    try:
-        appt.cancel()
-        db.session.commit()
-        flash("Appointment cancelled and slot freed.", "info")
-    except ValueError as e:
-        flash(str(e), "danger")
-    return redirect(url_for("doctor_dashboard", doctor_id=appt.slot.doctor_id))
-
-
-@app.route("/appointments/<int:appt_id>/complete", methods=["POST"])
-def complete(appt_id):
-    appt = Appointment.query.get_or_404(appt_id)
-    try:
-        treatment = appt.complete(treatment_data={"notes": "Treatment started"})
-        db.session.commit()
-        flash("Appointment completed. Treatment record created.", "success")
-    except ValueError as e:
-        flash(str(e), "danger")
-    return redirect(url_for("doctor_dashboard", doctor_id=appt.slot.doctor_id))
-
-
-@app.route("/availability/<int:slot_id>/block", methods=["POST"])
-def block_slot(slot_id):
-    slot = Availability.query.get_or_404(slot_id)
-    reason = request.form.get("reason", "On leave")
-
-    try:
-        slot.block(reason=reason)
-        db.session.commit()
-        flash(f"Slot on {slot.date} ({slot.session}) blocked: {reason}", "info")
-    except ValueError as e:
-        flash(str(e), "danger")
-
-    return redirect(url_for("doctor_dashboard", doctor_id=slot.doctor_id))
 
 
 if __name__ == "__main__":

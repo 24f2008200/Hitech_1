@@ -5,7 +5,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 
 db = SQLAlchemy()
-
 # --------------------------
 # Enums
 # --------------------------
@@ -40,13 +39,14 @@ class User(db.Model,UserMixin):
         "polymorphic_on": type,
     }
 
-    def __init__(self, name, email, password, last_name=None, dob=None, phone=None, address=None):
+    def __init__(self, name, email, password, last_name=None, dob=None, phone=None, address=None ,role ="user"):
         self.name = name
         self.email = email
         self.last_name = last_name
         self.dob = dob
         self.phone = phone
         self.address = address
+        self.role = role
         self.set_password(password)
 
     def set_password(self, plain_password: str):
@@ -67,6 +67,8 @@ class Admin(User):
     __mapper_args__ = {
         "polymorphic_identity": "admin",
     }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
 # --------------------------
@@ -100,6 +102,9 @@ class Doctor(User):
         "polymorphic_identity": "doctor",
     }
 
+    def __init__(self, **kwargs):
+        self.department = kwargs.pop("department", None)
+        super().__init__(**kwargs)
 
 # --------------------------
 # Patient
@@ -115,6 +120,9 @@ class Patient(User):
     __mapper_args__ = {
         "polymorphic_identity": "patient",
     }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
 
 
 # --------------------------
@@ -125,33 +133,81 @@ class Appointment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
+    slot_id = db.Column(db.Integer, db.ForeignKey("availability.id"), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)   # <-- add this
 
-    date = db.Column(db.Date, nullable=False)
-    time = db.Column(db.Time, nullable=False)
     status = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.BOOKED, nullable=False)
     reason = db.Column(db.Text)
 
     patient = db.relationship("Patient", back_populates="appointments")
-    doctor = db.relationship("Doctor", back_populates="appointments")
-    treatments = db.relationship("Treatment", back_populates="appointment", cascade="all, delete-orphan")
+    slot = db.relationship("Availability", back_populates="appointment")
+    doctor = db.relationship("Doctor", back_populates="appointments")   # <-- now valid
+    treatment = db.relationship("Treatment", back_populates="appointment", uselist=False)
+
+
+
+    def cancel(self):
+        """Cancel the appointment and free up the slot."""
+        if self.status != AppointmentStatus.BOOKED:
+            raise ValueError("Only booked appointments can be cancelled.")
+        self.status = AppointmentStatus.CANCELLED
+        self.slot.available = True
+        db.session.add(self)
+
+    def complete(self, treatment_data=None):
+        """Mark appointment as completed and create Treatment record."""
+        if self.status != AppointmentStatus.BOOKED:
+            raise ValueError("Only booked appointments can be completed.")
+        self.status = AppointmentStatus.COMPLETED
+        self.slot.available = False  # slot stays closed
+        treatment = Treatment(appointment=self, **(treatment_data or {}))
+        db.session.add(treatment)
+        return treatment
 
 class Availability(db.Model):
-    __tablename__ = "availability"
+    __tablename__ = "availability" 
     id = db.Column(db.Integer, primary_key=True)
 
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    session = db.Column(db.String(20), nullable=False)   # morning / afternoon / evening
-    available = db.Column(db.Boolean, default=False, nullable=False)
+    session = db.Column(db.String(20), nullable=False)   # morning / evening
+    available = db.Column(db.Boolean, default=True, nullable=False)
+    block_reason = db.Column(db.Text, nullable=True)      # <-- NEW
 
-    # ensure uniqueness of (doctor_id, date, session)
     __table_args__ = (
         db.UniqueConstraint("doctor_id", "date", "session", name="unique_doctor_slot"),
     )
 
-    # relationship back to Doctor
     doctor = db.relationship("Doctor", back_populates="availability")
+    appointment = db.relationship("Appointment", back_populates="slot", uselist=False)
+
+    @property
+    def is_busy(self):
+        """Slot is busy if unavailable or linked to an appointment."""
+        return not self.available or self.appointment is not None
+
+    def book(self, patient_id, reason=None):
+        if self.is_busy:
+            raise ValueError("This slot is already busy or booked.")
+        appt = Appointment(
+            patient_id=patient_id,
+            doctor_id=self.doctor_id,   # ensure doctor_id is set
+            slot=self,
+            reason=reason,
+        )
+        self.available = False
+        db.session.add(appt)
+        return appt
+
+
+    def block(self, reason=None):
+        """Block this slot without creating an appointment."""
+        if self.appointment is not None:
+            raise ValueError("Cannot block: slot already booked.")
+        self.available = False
+        self.block_reason = reason or "Unavailable"
+        db.session.add(self)
+        return self
 
 # --------------------------
 # Treatment
@@ -168,4 +224,5 @@ class Treatment(db.Model):
     visit_type = db.Column(db.Text)
     tests = db.Column(db.Text)
     medicines = db.Column(db.Text)
-    appointment = db.relationship("Appointment", back_populates="treatments")
+    appointment = db.relationship("Appointment", back_populates="treatment")
+

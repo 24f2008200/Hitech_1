@@ -1,0 +1,133 @@
+{% extends "index.html" %}
+
+{% block title %}Doctor Dashboard - HMS{% endblock %}
+{% block styles %}
+<style>
+    .slot-available {
+        background-color: #d4edda;
+    }
+
+    /* green */
+    .slot-busy {
+        background-color: #f8d7da;
+    }
+
+    /* red */
+    .slot-selected {
+        background-color: #cce5ff;
+    }
+
+    /* blue */
+    .slot-box {
+        min-width: 120px;
+        text-align: center;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        padding: 6px;
+        border-radius: 5px;
+    }
+</style>
+
+{% endblock %}
+{% block content %}
+<h3>Availability of {{ doctor.name }}</h3>
+
+<form method="POST" action="{{ url_for('appointments_book', doctor_id=doctor.id) }}">
+    <input type="hidden" name="date" id="selectedDate">
+    <input type="hidden" name="session" id="selectedSession">
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs" id="monthTabs" role="tablist">
+        {% for month_start, month_end, avail_map in months %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab"
+                data-bs-target="#month-{{ loop.index }}" type="button" role="tab">
+                {{ month_start.strftime('%B %Y') }}
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content mt-3">
+        {% for month_start, weeks, avail_map in months %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="month-{{ loop.index }}">
+            <table class="table table-bordered text-center align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mon</th>
+                        <th>Tue</th>
+                        <th>Wed</th>
+                        <th>Thu</th>
+                        <th>Fri</th>
+                        <th>Sat</th>
+                        <th>Sun</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for week in weeks %}
+                    <tr>
+                        {% for d in week %}
+                        <td style="min-width:120px;">
+                            {% if d.month == month_start.month %}
+                            <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
+
+                            <!-- Morning -->
+                            {% set a = avail_map.get((d, 'morning')) %}
+                            {% set busy = a and a.is_busy %}
+                            <div class="slot-box {% if not a %}slot-busy{% elif busy %}slot-busy{% else %}slot-available{% endif %}"
+                                data-date="{{ d }}" data-session="morning">
+                                08:00 - 12:00
+                            </div>
+
+                            <!-- Evening -->
+                            {% set a = avail_map.get((d, 'evening')) %}
+                            {% set busy = a and a.is_busy %}
+                            <div class="slot-box {% if not a %}slot-busy{% elif busy %}slot-busy{% else %}slot-available{% endif %}"
+                                data-date="{{ d }}" data-session="evening">
+                                04:00 - 09:00
+                            </div>
+                            {% else %}
+                            <!-- empty cell for prev/next month -->
+                            <div class="text-muted">–</div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-3 text-end">
+        <button class="btn btn-success" type="submit">Book</button>
+         <button class="btn btn-primary" type="button" onclick="window.location.href='{{ url_for('patient_dashboard') }}'">Back</button>
+    </div>
+
+</form>
+
+
+{% endblock %}
+{% block scripts %}
+<script>
+    let selectedBox = null;
+
+    document.querySelectorAll(".slot-box.slot-available").forEach(box => {
+        box.addEventListener("click", () => {
+            // clear previous
+            if (selectedBox) selectedBox.classList.remove("slot-selected");
+
+            // set new
+            selectedBox = box;
+            selectedBox.classList.add("slot-selected");
+
+            // put values into hidden inputs
+            document.getElementById("selectedDate").value = box.dataset.date;
+            document.getElementById("selectedSession").value = box.dataset.session;
+        });
+    });
+</script>
+
+{% endblock %}

@@ -4,19 +4,21 @@
 
 {% block content %}
 <div class="border rounded shadow p-4">
-  <h2 class="mb-4 text-center">Patient Dashboard</h2>
+  <!-- <h2 class="mb-4 text-center">Patient Dashboard</h2> -->
 
   <!-- Tabs -->
   <ul class="nav nav-tabs" id="patientTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments" type="button" role="tab">My Appointments</button>
+      <button class="nav-link active" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments"
+        type="button" role="tab">My Appointments</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="treatments-tab" data-bs-toggle="tab" data-bs-target="#treatments" type="button" role="tab">My Treatments</button>
+      <button class="nav-link" id="treatments-tab" data-bs-toggle="tab" data-bs-target="#treatments" type="button"
+        role="tab">My Treatments</button>
     </li>
-      <li class="nav-item">
-    <a class="nav-link" id="departments-tab" data-bs-toggle="tab" href="#departments" role="tab">Departments</a>
-  </li>
+    <li class="nav-item">
+      <a class="nav-link" id="departments-tab" data-bs-toggle="tab" href="#departments" role="tab">Departments</a>
+    </li>
   </ul>
 
   <div class="tab-content mt-3">
@@ -39,8 +41,8 @@
             <tr>
               <td>{{ appt.id }}</td>
               <td>{{ appt.doctor.name }}</td>
-              <td>{{ appt.date }}</td>
-              <td>{{ appt.time }}</td>
+              <td>{{ appt.slot.date }}</td>
+              <td>{{ appt.slot.session }}</td>
               <td>{{ appt.status.value }}</td>
             </tr>
             {% endfor %}
@@ -76,18 +78,19 @@
         </table>
       </div>
     </div>
-        <!-- Departments -->
- <div class="tab-pane fade" id="departments" role="tabpanel">
-    <h5>Departments</h5>
-    <div class="list-group">
-      {% for dept in departments %}
-      <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
-        <span>{{ dept.name }}</span>
-        <a href="{{ url_for('department_details', dept_id=dept.id) }}" class="btn btn-outline-primary btn-sm">View Details</a>
+    <!-- Departments -->
+    <div class="tab-pane fade" id="departments" role="tabpanel">
+      <h5>Departments</h5>
+      <div class="list-group">
+        {% for dept in departments %}
+        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+          <span>{{ dept.name }}</span>
+          <a href="{{ url_for('department_details', dept_id=dept.id) }}" class="btn btn-outline-primary btn-sm">View
+            Details</a>
+        </div>
+        {% endfor %}
       </div>
-      {% endfor %}
     </div>
-  </div>
   </div>
 </div>
 {% endblock %}
