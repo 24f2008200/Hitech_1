@@ -2,45 +2,82 @@
 {% block content %}
 <h2>Add Doctor</h2>
 <form method="POST" action="{{ url_for('add_doctor') }}">
+  
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">First Name</label>
+    <div class="col-md-9">
+      <input type="text" name="first_name" class="form-control" required>
+    </div>
+  </div>
 
-  <div class="mb-3">
-    <label>First Name</label>
-    <input type="text" name="first_name" class="form-control" required>
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Last Name</label>
+    <div class="col-md-9">
+      <input type="text" name="last_name" class="form-control">
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Last Name</label>
-    <input type="text" name="last_name" class="form-control">
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Email</label>
+    <div class="col-md-9">
+      <input type="email" name="email" class="form-control" required>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Email</label>
-    <input type="email" name="email" class="form-control" required>
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Phone</label>
+    <div class="col-md-9">
+      <input type="text" name="phone" class="form-control">
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Phone</label>
-    <input type="text" name="phone" class="form-control">
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">License Number</label>
+    <div class="col-md-9">
+      <input type="text" name="license_number" class="form-control" required>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>License Number</label>
-    <input type="text" name="license_number" class="form-control" required>
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Years of Experience</label>
+    <div class="col-md-9">
+      <input type="number" name="experience" class="form-control" required>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Department</label>
-    <select name="specialization_id" class="form-control" required>
-      {% for dept in departments %}
-      <option value="{{ dept.id }}">{{ dept.name }}</option>
-      {% endfor %}
-    </select>
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Department</label>
+    <div class="col-md-9">
+      <select name="department_id" class="form-control" required>
+        {% for dept in departments %}
+        <option value="{{ dept.id }}">{{ dept.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
   </div>
+
   <hr>
   <h5>Create Doctor Login</h5>
-  <div class="mb-3">
-    <label>Username</label>
-    <input type="text" name="username" class="form-control" required>
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Username</label>
+    <div class="col-md-9">
+      <input type="text" name="username" class="form-control" required>
+    </div>
   </div>
-  <div class="mb-3">
-    <label>Password</label>
-    <input type="password" name="password" class="form-control" required>
+
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">Password</label>
+    <div class="col-md-9">
+      <input type="password" name="password" class="form-control" required>
+    </div>
   </div>
-  <button type="submit" class="btn btn-success">Add Doctor</button>
+
+  <div class="row">
+    <div class="offset-md-3 col-md-9">
+      <button type="submit" class="btn btn-success">Add Doctor</button>
+    </div>
+  </div>
+
 </form>
 {% endblock %}

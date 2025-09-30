@@ -1,10 +1,9 @@
 {% macro render_actions(actions) %}
-  {% for action in actions %}
-    <a href="{{ action.url }}"
-       class="btn btn-{{ action.color }} btn-sm me-1">
-       {{ action.label }}
-    </a>
-  {% endfor %}
+{% for action in actions %}
+<a href="{{ action.url }}" class="btn btn-{{ action.color }} btn-sm me-1">
+  {{ action.label }}
+</a>
+{% endfor %}
 {% endmacro %}
 
 
@@ -14,27 +13,27 @@
     <thead class="table-light">
       <tr>
         {% for col in columns %}
-          <th>{{ col }}</th>
+        <th>{{ col }}</th>
         {% endfor %}
       </tr>
     </thead>
     <tbody>
       {% for row in rows %}
-        <tr>
-          {% for col in columns %}
-            <td>
-              {% if col in row %}
-                {% if row[col] is string %}
-                  {{ row[col] }}
-                {% elif row[col] is sequence %}
-                  {{ render_actions(row[col]) }}
-                {% else %}
-                  {{ row[col] | safe }}
-                {% endif %}
-              {% endif %}
-            </td>
-          {% endfor %}
-        </tr>
+      <tr>
+        {% for col in columns %}
+        <td>
+          {% if col in row %}
+          {% if row[col] is string %}
+          {{ row[col] }}
+          {% elif row[col] is sequence %}
+          {{ render_actions(row[col]) }}
+          {% else %}
+          {{ row[col] | safe }}
+          {% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
       {% endfor %}
     </tbody>
   </table>
@@ -44,30 +43,91 @@
 
 {% macro render_tabs(title, tabs) %}
 <div class="container mt-4">
-  <h3>{{ title }}</h3>
+  <!-- <h3>{{ title }}</h3> -->
 
   <!-- Tabs -->
   <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     {% for tab in tabs %}
-      <li class="nav-item" role="presentation">
-        <button class="nav-link {% if loop.first %}active{% endif %}"
-                id="tab-{{ loop.index }}"
-                data-bs-toggle="tab"
-                data-bs-target="#content-{{ loop.index }}"
-                type="button" role="tab">
-          {{ tab.label }}
-        </button>
-      </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab"
+        data-bs-target="#content-{{ loop.index }}" type="button" role="tab">
+        {{ tab.label }}
+      </button>
+    </li>
     {% endfor %}
   </ul>
 
   <!-- Tab Content -->
-  <div class="tab-content mt-3">
+  <!-- <div class="tab-content mt-3">
     {% for tab in tabs %}
-      <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
-        {{ render_table(tab.columns, tab.rows) }}
-      </div>
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
+      {{ render_table(tab.columns, tab.rows) }}
+    </div>
     {% endfor %}
-  </div>
+  </div> -->
+  <div class="tab-content mt-3">
+  {% for tab in tabs %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
+      
+      {% if tab.columns is defined and tab.columns %}
+        {{ render_table(tab.columns, tab.rows) }}
+      {% elif tab.page is defined %}
+        {% include tab.page %}
+      {% else %}
+        <p>No content available</p>
+      {% endif %}
+      
+    </div>
+  {% endfor %}
 </div>
+
+</div>
+{% endmacro %}
+
+{% macro render_form(form) %}
+<form method="{{ form.method }}" action="{{ form.action }}">
+  {% for field in form.fields %}
+  <div class="mb-3 row">
+    <label class="col-md-3 col-form-label">{{ field.label }}</label>
+    <div class="col-md-9">
+
+      {% if field.type == "select" %}
+      <select name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
+        {% for value, text in field.options %}
+        <option value="{{ value }}" {% if field.value is defined and field.value==value %}selected{% endif %}>
+          {{ text }}
+        </option>
+        {% endfor %}
+      </select>
+
+      {% elif field.type == "textarea" %}
+      <textarea name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
+            {% if field.value is defined %}{{ field.value or ''}}{% endif %}
+          </textarea>
+      {% elif field.type == "date" %}
+      <input type="date" name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}
+        value="{{ field.value or '' }}">
+      {% else %}
+      <input type="{{ field.type }}" name="{{ field.name }}" class="form-control" {% if field.required %}required{%
+        endif %} {% if field.value is defined %}value="{{ field.value or '' }}" {% endif %}>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="row">
+    <div class="offset-md-3 col-md-9">
+      <span><button type="submit" class="btn btn-success">{{ form.submit_label }}</button></span>
+
+      {% if form.other_buttons %}
+      {% for button in form.other_buttons %}
+      <span><a href="{{ button.url }}" class="btn btn-secondary">{{ button.label }}</a></span>
+      {% endfor %}
+      {% endif %}
+
+    </div>
+  </div>
+
+</form>
 {% endmacro %}

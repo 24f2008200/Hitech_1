@@ -381,17 +381,17 @@ def add_department():
 @admin_required
 def add_doctor():
     if request.method == "POST":
-        fullname = request.form.get("fullname")
+        name = request.form.get("name")
         specialization = request.form.get("specialization")
         experience = request.form.get("experience")
         dept_id = request.form.get("department_id")
 
-        if not fullname or not specialization:
-            flash("Fullname and specialization are required.", "danger")
+        if not name or not specialization:
+            flash("name and specialization are required.", "danger")
             return redirect(url_for("admin.add_doctor"))
 
         doctor = Doctor(
-            fullname=fullname,
+            name=name,
             specialization=specialization,
             experience_years=int(experience) if experience else None,
             department_id=int(dept_id) if dept_id else None

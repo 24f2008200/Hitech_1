@@ -1,0 +1,50 @@
+{% extends "index.html" %}
+{% block content %}
+<h2>Add Doctor</h2>
+<form method="POST" action="{{ url_for('add_doctor') }}">
+
+  <div class="mb-3">
+    <label>First Name</label>
+    <input type="text" name="first_name" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Last Name</label>
+    <input type="text" name="last_name" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label>Email</label>
+    <input type="email" name="email" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Phone</label>
+    <input type="text" name="phone" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label>License Number</label>
+    <input type="text" name="license_number" class="form-control" required>
+  </div>
+    <div class="mb-3">
+    <label>Yesrs of Experience Number</label>
+    <input type="text" name="experience" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Department</label>
+    <select name="specialization_id" class="form-control" required>
+      {% for dept in departments %}
+      <option value="{{ dept.id }}">{{ dept.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <hr>
+  <h5>Create Doctor Login</h5>
+  <div class="mb-3">
+    <label>Username</label>
+    <input type="text" name="username" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label>Password</label>
+    <input type="password" name="password" class="form-control" required>
+  </div>
+  <button type="submit" class="btn btn-success">Add Doctor</button>
+</form>
+{% endblock %}

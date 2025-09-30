@@ -23,7 +23,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 #     return user
 
 
-def role_required(role_name):
+def role_required(*role_name):
     """Generic role-based decorator: admin, doctor, patient."""
     def decorator(fn):
         @wraps(fn)
@@ -33,7 +33,7 @@ def role_required(role_name):
             if user is None:
                 return {"msg": "Not authenticated"}, 401
 
-            if user.type != role_name:
+            if user.type not in role_name:
                 return {"msg": f"Access denied, must be {role_name}"}, 403
 
             return fn(*args, **kwargs)

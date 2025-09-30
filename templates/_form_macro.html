@@ -1,0 +1,42 @@
+{% macro render_form(form) %}
+<form method="{{ form.method }}" action="{{ form.action }}">
+  {% for field in form.fields %}
+    <div class="mb-3 row">
+      <label class="col-md-3 col-form-label">{{ field.label }}</label>
+      <div class="col-md-9">
+
+        {% if field.type == "select" %}
+          <select name="{{ field.name }}" class="form-control"
+                  {% if field.required %}required{% endif %}>
+            {% for value, text in field.options %}
+              <option value="{{ value }}"
+                {% if field.value is defined and field.value == value %}selected{% endif %}>
+                {{ text }}
+              </option>
+            {% endfor %}
+          </select>
+
+        {% elif field.type == "textarea" %}
+          <textarea name="{{ field.name }}" class="form-control"
+                    {% if field.required %}required{% endif %}>
+            {% if field.value is defined %}{{ field.value }}{% endif %}
+          </textarea>
+
+        {% else %}
+          <input type="{{ field.type }}" name="{{ field.name }}"
+                 class="form-control"
+                 {% if field.required %}required{% endif %}
+                 {% if field.value is defined %}value="{{ field.value }}"{% endif %}>
+        {% endif %}
+
+      </div>
+    </div>
+  {% endfor %}
+
+  <div class="row">
+    <div class="offset-md-3 col-md-9">
+      <button type="submit" class="btn btn-success">{{ form.submit_label }}</button>
+    </div>
+  </div>
+</form>
+{% endmacro %}

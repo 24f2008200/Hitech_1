@@ -36,8 +36,8 @@
     }
 
     .scroll-table {
-      max-height: 350px;
-      /* Adjust scroll height */
+      height: calc(100vh - 260px);
+      max-width: 100%;
       overflow-y: auto;
     }
 
@@ -92,13 +92,20 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('add_doctor') }}">Add Doc</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for("edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
+          </li>
           {% endif %}
 
           <!-- Doctor only -->
           {% if current_user.is_authenticated and current_user.role == 'doctor' %}
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('doctor_dashboard') }}">Home</a>
+            </li><li>
             <a class="nav-link" href="{{ url_for('availability') }}">Availability</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for("edit_doctor",doctor_id=current_user.id)}}">Edit Profile</a>
           </li>
           {% endif %}
 
@@ -110,13 +117,14 @@
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('patient_history' ,patient_id=current_user.id) }}">History</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for("edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
+          </li>
           {% endif %}
 
           <!-- Logged-in users see logout -->
           {% if current_user.is_authenticated %}
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('logout') }}">Edit Profile</a>
-          </li>
+
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
           </li>
@@ -135,26 +143,6 @@
     </div>
   </nav>
 
-
-  <!-- Navbar -->
-  <!-- <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">HMS</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('admin_dashboard') }}">Admin</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('doctor_dashboard') }}">Doctor</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('patient_dashboard') }}">Patient</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('logout') }}">LogOut</a></li>
-
-                </ul>
-            </div>
-        </div>
-    </nav> -->
 
   <!-- Page Content -->
   <main class="container my-4">

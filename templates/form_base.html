@@ -1,0 +1,9 @@
+{% extends "index.html" %}
+{% import "_macros.html" as ui %}
+
+{% block content %}
+  {% if title %}
+    <h2>{{ title }}</h2>
+  {% endif %}
+  {{ ui.render_form(form) }}
+{% endblock %}

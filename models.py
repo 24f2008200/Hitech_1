@@ -39,7 +39,9 @@ class User(db.Model,UserMixin):
         "polymorphic_on": type,
     }
 
-    def __init__(self, name, email, password, last_name=None, dob=None, phone=None, address=None ,role ="user"):
+    def __init__(self, name, email, password, last_name=None, 
+                 dob=None, phone=None, address=None ,role ="user", **kwargs):
+        super().__init__(**kwargs)
         self.name = name
         self.email = email
         self.last_name = last_name
@@ -85,14 +87,15 @@ class Department(db.Model):
 
 
 # --------------------------
-# Doctor
+# Doctor 
 # --------------------------
 class Doctor(User):
     __tablename__ = "doctors"
 
     id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
     department_id = db.Column(db.Integer, db.ForeignKey("departments.id"))
-
+    license_number = db.Column(db.String(20))
+    experience = db.Column(db.Integer)
     department = db.relationship("Department", back_populates="doctors")
     appointments = db.relationship("Appointment", back_populates="doctor")
     availability = db.relationship("Availability", back_populates="doctor", cascade="all, delete-orphan")
@@ -102,12 +105,13 @@ class Doctor(User):
         "polymorphic_identity": "doctor",
     }
 
-    def __init__(self, **kwargs):
-        self.department = kwargs.pop("department", None)
-        super().__init__(**kwargs)
+    # def __init__(self, **kwargs):
+    #     self.department = kwargs.pop("department", None) 
+    #     self.license_number =kwargs.pop("license_number", None)
+    #     super().__init__(**kwargs)
 
 # --------------------------
-# Patient
+# Patient 
 # --------------------------
 class Patient(User):
     __tablename__ = "patients"
@@ -126,7 +130,7 @@ class Patient(User):
 
 
 # --------------------------
-# Appointment
+# Appointment 
 # --------------------------
 class Appointment(db.Model):
     __tablename__ = "appointments"
