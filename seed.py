@@ -107,10 +107,14 @@ def seed_database():
         # 10 booked
         for slot in free_slots[:10]:
             patient = random.choice(patients)
-            appt = slot.book(patient_id=patient.id, reason=fake.sentence(nb_words=6))
-            db.session.add(appt)
+            try:
+                appt = slot.book(patient_id=patient.id, reason=fake.sentence(nb_words=6))
+                db.session.add(appt)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                
 
-        db.session.commit()
 
         # refresh free slots
         free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.appointment is None]

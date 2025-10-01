@@ -116,36 +116,41 @@ def doctor_dashboard():
     patients = {appt.patient for appt in appointments if appt.patient is not None}  # unique patients
     #print (patients)
     #return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
-    appt_rows = []
-    for a in appointments :
-        if a is not None:
-            appt_rows.append({
-                "ID": a.id,
-                "Patient": a.patient.name if a.patient is not None else "",
-                "Date": a.slot.date.strftime("%Y-%m-%d"),
-                "Time": a.slot.session,
-                "Status": a.status,
-                "Reason": a.reason or "—",
-                "Actions": [
-                    {"label": "Update", "url": url_for("doctor.update_appointment",  appt_id=a.id), "color": "info"},
-                    {"label": "Close", "url": url_for("doctor.close_appointment",  appt_id=a.id), "color": "success"},
-                    {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appt_id=a.id), "color": "danger"},
-                ],
-            }) #"showUpdateForm(`{{ appt.id }}`, '{{ appt.patient.name }}', '{{ doctor.department.name  }}')"
+    # appt_rows = []
+    # for a in appointments :
+    #     if a is not None:
+    #         appt_rows.append({
+    #             "ID": a.id,
+    #             "Patient": a.patient.name +" " +a.patient.last_name if a.patient is not None else "",
+    #             "Date": a.slot.date.strftime("%Y-%m-%d"),
+    #             "Time": a.slot.session,
+    #             "Status": a.status,
+    #             "Reason": a.reason or "—",
+    #             "Actions": [
+    #                 {"label": "Update", "url": url_for("doctor.update_appointment",  appointment_id=a.id), "color": "info"},
+    #                 {"label": "Close", "url": url_for("doctor.close_appointment",  appointment_id=a.id), "color": "success"},
+    #                 {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appointment_id=a.id), "color": "danger"},
+    #             ],
+    #         }) #"showUpdateForm(`{{ appt.id }}`, '{{ appt.patient.name }}', '{{ doctor.department.name  }}')"
     patient_rows = []
     if doctor.appointments is not None:
         for a in doctor.appointments:
             if a.patient is not None:
-                patient_rows.append({"ID": a.patient.id, "Patient": a.patient.name, "Status": a.status,
+                patient_rows.append({"ID": a.patient.id, "Patient": a.patient.name +" " +a.patient.last_name, "Status": a.status,
                                      "Actions": [
                     {"label": "View", "url": url_for("patient.patient_history",  patient_id=a.patient.id), "color": "info"},
-                    # {"label": "Close", "url": url_for("doctor.close_appointment",  appt_id=a.id), "color": "success"},
-                    # {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appt_id=a.id), "color": "danger"},
+                    # {"label": "Close", "url": url_for("doctor.close_appointment",  appointment_id=a.id), "color": "success"},
+                    # {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appointment_id=a.id), "color": "danger"},
                 ],} )
-  
-    appointments_rows = get_appointment_rows(doc_id=doctor.id)
+    actions =[
+                    {"label": "Update", "url":"doctor.update_appointment", "color": "info"},
+                    {"label": "Close", "url": "doctor.close_appointment",  "color": "success"},
+                    {"label": "Cancel", "url": "doctor.cancel_appointment", "color": "danger"},
+                ]
+
+    appointments_rows = get_appointment_rows(doc_id=doctor.id,active=True,actions=actions)
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Time", "Status", "Reason", "Actions"], "rows": appt_rows},
+        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Time", "Status", "Reason", "Actions"], "rows": appointments_rows},
         {"label": "My Patients", "columns": ["ID", "Patient", "Status","Actions"], "rows": patient_rows},
         {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
     ]
@@ -173,6 +178,7 @@ def availability():
 
     for rec in avail_records:
         slots[rec.date.isoformat()][rec.session] = rec.available
+        print(rec)
 
     return render_template("availability.html", days=days, slots=slots, doctor_id=doctor_id)
 
@@ -182,7 +188,7 @@ def update_history():
     if current_user.type != "doctor":
         return "Forbidden", 403
 
-    appt_id = request.form.get("appointment_id")
+    appointment_id = request.form.get("appointment_id")
     visit_type = request.form.get("visit_type")
     test_done = request.form.get("test_done")
     diagnosis = request.form.get("diagnosis")
@@ -190,7 +196,7 @@ def update_history():
     medicines = request.form.get("medicines")
 
     # Create Treatment entry linked to appointment
-    appointment = Appointment.query.get_or_404(appt_id)
+    appointment = Appointment.query.get_or_404(appointment_id)
     treatment = Treatment(
         appointment=appointment,
         diagnosis=diagnosis,
@@ -261,11 +267,13 @@ def doctor_availability(doctor_id):
         availabilities = Availability.query.filter(
             Availability.doctor_id == doctor_id,
             Availability.date >= month_start,
-            Availability.date <= month_end
+            Availability.date <= month_end,
+            Availability.available == True
         ).all()
 
         avail_map = {(a.date, a.session): a for a in availabilities}
         months.append((month_start, weeks, avail_map))
+  
 
     return render_template("booking.html", doctor=doctor, months=months)
 
@@ -276,25 +284,25 @@ def doctor_details(doctor_id):
 
 
 
-@doctor_bp.route("/update_appointment/<int:appt_id>")
+@doctor_bp.route("/update_appointment/<int:appointment_id>")
 @doctor_required
-def update_appointment(appt_id):
+def update_appointment(appointment_id):
     return "todo"
 
-@doctor_bp.route("/close_appointment/<int:appt_id>")
+@doctor_bp.route("/close_appointment/<int:appointment_id>")
 @doctor_required
-def close_appointment(appt_id):
+def close_appointment(appointment_id):
     return "todo"
 
-@doctor_bp.route("/cancel_appointment/<int:appt_id>")
+@doctor_bp.route("/cancel_appointment/<int:appointment_id>")
 @doctor_required
-def cancel_appointment(appt_id):
+def cancel_appointment(appointment_id):
     return "todo"
 
 
-@doctor_bp.route("/appointments/<int:appt_id>/complete", methods=["GET", "POST"])
-def complete(appt_id):
-    appt = Appointment.query.get_or_404(appt_id)
+@doctor_bp.route("/appointments/<int:appointment_id>/complete", methods=["GET", "POST"])
+def complete(appointment_id):
+    appt = Appointment.query.get_or_404(appointment_id)
     try:
         treatment = appt.complete(treatment_data={"notes": "Treatment started"})
         db.session.commit()

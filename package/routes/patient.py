@@ -92,19 +92,6 @@ def register():
 
 
 
-@patient_bp.route("/edit_appointmen/<int:appointment_id>", methods=["GET", "POST"])
-@role_required("admin", "patient")
-def edit_appointment(appointment_id):
-    return "todo"
-    
-
-
-@patient_bp.route("/delete_appointmen/<int:appointment_id>", methods=["GET", "POST"])
-@role_required("admin", "patient")
-def delete_appointment(appointment_id):
-    return "todo"
-
-
 @patient_bp.route("/dashboard", methods=["GET", "POST"])
 @patient_required
 def patient_dashboard():
@@ -115,15 +102,20 @@ def patient_dashboard():
 
     # return render_template("patient_dashboard.html", patient=patient, appointments=appointments,\
     #                         treatments=treatments,departments=departments)
-    appt_rows = []
-    for a in appointments:
-        appt_rows.append({
-            "ID": a.id,
-            "Doctor": a.doctor.name,
-            "Date": a.slot.date.strftime("%Y-%m-%d"),
-            "Time": a.slot.session,
-            "Status": a.status,
-        })
+    actions =[
+                    # {"label": "Update", "url":"doctor.update_appointment", "color": "info"},
+                    # {"label": "Close", "url": "doctor.close_appointment",  "color": "success"},
+                    {"label": "Cancel", "url": "patient.delete_appointment", "color": "danger"},
+                ]
+    appt_rows = get_appointment_rows(pat_id=patient.id,active=True,actions=actions)
+    # for a in appointments:
+    #     appt_rows.append({
+    #         "ID": a.id,
+    #         "Doctor": a.doctor.name,
+    #         "Date": a.slot.date.strftime("%Y-%m-%d"),
+    #         "Time": a.slot.session,
+    #         "Status": a.status,
+    #     })
     treat_rows=[]
     for t in treatments:
         treat_rows.append({
@@ -142,12 +134,88 @@ def patient_dashboard():
             ]
         })
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Time", "Status"], "rows": appt_rows},
+        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Time", "Status","Actions"], "rows": appt_rows},
         {"label": "My Treatments", "columns": ["ID", "Date", "Doctor", "Prescription"],"rows": treat_rows},
         {"label": "Departments", "columns":["Departments", "Action"],"rows": department_rows},
     ]
 
     return render_template("dashboard_base.html", title="Patient Dashboard", tabs=tabs)
+
+
+
+@patient_bp.route("/appointments_book/<int:doctor_id>", methods=["POST"])
+@login_required
+def appointments_book(doctor_id):
+    date_str = request.form.get("date")
+    session = request.form.get("session")
+    patient_id = current_user.id
+    add_url = url_for("doctor.doctor_availability", doctor_id=doctor_id)
+    home_url =get_home_url()
+
+    if not date_str or not session:
+        flash("Please select a slot before booking.", "danger")
+        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+
+    # convert date string to date
+    selected_date = datetime.fromisoformat(date_str).date()
+
+    # find availability
+    spot = Availability.query.filter_by(
+        doctor_id=doctor_id, date=selected_date, session=session
+    ).first()
+
+    if not spot or not spot.available:
+        flash("Selected slot is not available.", "danger")
+        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+
+    if spot.is_busy:
+        flash("This slot has already been booked by another patient.", "danger")
+        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+
+
+    try:
+        appt =spot.book(patient_id)
+        db.session.commit()
+        flash("Appointment booked successfully!", "success")
+        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating Department: {e}", "danger")
+        return redirect(add_url)
+
+    
+@patient_bp.route("/delete_appointmen/<int:appointment_id>", methods=["GET", "POST"])
+@role_required("admin", "patient")
+def delete_appointment(appointment_id):
+    ap = Appointment.query.get_or_404(appointment_id)
+    edit_url = url_for("patient.delete_appointment",appointment_id=appointment_id)
+    home_url =get_home_url()
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code !=appointment_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to cancel this appointment",
+                                   confirmation_code = appointment_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            ap.cancel()
+            db.session.commit()
+            flash("✅ That  appoinment is cancelled", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error cancelling appointment: {e}", "danger")
+            return redirect(home_url)
+
+    return render_template('confirmation.html',
+                                   message ="Do You want to cancel this appointment",
+                                   confirmation_code = appointment_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
 
 
 @patient_bp.route("/history/<int:patient_id>", methods=["GET"])
@@ -198,50 +266,55 @@ def patient_history(patient_id):
                            )
 
 
+@patient_bp.route("/edit_appointmen/<int:appointment_id>", methods=["GET", "POST"])
+@role_required("admin", "patient")
+def edit_appointment(appointment_id):
+    ap = Appointment.query.get_or_404(appointment_id)
+    edit_url = url_for("patient.edit_appointment",appointment_id=appointment_id)
+    home_url =get_home_url()
+        
+    appointment_form = {
+        "action": home_url,
+        "method": "POST",
+        "fields": [
+            {"label": "Patient Name", "name": "first_name", "type": "text",
+            "required": False, "value": ap.patient.name},
 
-@patient_bp.route("/<int:doctor_id>/book", methods=["POST"])
-@login_required
-def appointments_book(doctor_id):
-    date_str = request.form.get("date")
-    session = request.form.get("session")
-    patient_id = current_user.id
+            {"label": "Doctor's Name", "name": "last_name", "type": "text",
+            "value": ap.doctor.name},
 
-    if not date_str or not session:
-        flash("Please select a slot before booking.", "danger")
-        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+            {"label": "Date of Appointment", "name": "dob", "type": "date",
+            "required": False, "value":ap.slot.date},
 
-    # convert date string to date
-    selected_date = datetime.fromisoformat(date_str).date()
+            {"label": "Session", "name": "email", "type": "text",
+            "required": False, "value":ap.slot.session},
 
-    # find availability
-    avail = Availability.query.filter_by(
-        doctor_id=doctor_id, date=selected_date, session=session
-    ).first()
+            {"label": "Tests", "name": "phone", "type": "text",
+            "value":ap.treatment.tests if ap.treatment else ""},
+            
+            {"label": "Diagnosis", "name": "phone", "type": "text",
+            "value":ap.treatment.diagnosis if ap.treatment else ""},
 
-    if not avail or not avail.available:
-        flash("Selected slot is not available.", "danger")
-        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+            {"label": "Prescription", "name": "phone", "type": "text",
+            "value":ap.treatment.prescription if ap.treatment else ""},
+            
+          
+            {"label": "Medicines", "name": "phone", "type": "text",
+            "value":ap.treatment.medicines if ap.treatment else ""},
+        ],
 
-    if avail.is_busy:
-        flash("This slot has already been booked by another patient.", "danger")
-        return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
-    date = selected_date
-    time = datetime.fromisoformat(date_str).time()
-    status = AppointmentStatus.BOOKED
-    reason = "Test"
-    availability_id = db.Column(db.Integer, db.ForeignKey("availability.id"), nullable=False)
-    avail.available = False
+        "other_buttons" :[{"label" :"Delete" ,"url": url_for('patient.delete_appointment',
+                              appointment_id=appointment_id)}],
 
-    # create appointment
-    appt = Appointment(patient_id=patient_id, doctor_id=doctor_id, slot=avail , status=status)
-    db.session.add(appt)
-    db.session.commit()
+        "submit_label": "View appointment"
+    }
     
 
-    flash("Appointment booked successfully!", "success")
-    return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
+    # GET request – render the edit form
+    return render_template("form_base.html", form = appointment_form ,title = "Edit appointment")
 
 
+    
 
 @patient_bp.route("/update_slot/<int:doctor_id>", methods=["POST"])
 @doctor_required
@@ -271,31 +344,18 @@ def update_slot(doctor_id):
 
 
 
-@patient_bp.route("/appointments/book/<int:slot_id>", methods=["POST"])
-def book(slot_id):
-    slot = Availability.query.get_or_404(slot_id)
-    patient_id = request.form["patient_id"]
-    reason = request.form.get("reason")
+# @patient_bp.route("/appointments/book/<int:slot_id>", methods=["POST"])
+# def book(slot_id):
+#     slot = Availability.query.get_or_404(slot_id)
+#     patient_id = request.form["patient_id"]
+#     reason = request.form.get("reason")
 
-    try:
-        appt = slot.book(patient_id=patient_id, reason=reason)
-        db.session.commit()
-        flash("Appointment booked!", "success")
-    except ValueError as e:
-        flash(str(e), "danger")
-    return redirect(url_for("appointments.check_availability", doctor_id=slot.doctor_id))
-
-
-
-@patient_bp.route("/appointments/<int:appt_id>/cancel", methods=["POST"])
-def cancel(appt_id):
-    appt = Appointment.query.get_or_404(appt_id)
-    try:
-        appt.cancel()
-        db.session.commit()
-        flash("Appointment cancelled and slot freed.", "info")
-    except ValueError as e:
-        flash(str(e), "danger")
-    return redirect(url_for("doctor.doctor_dashboard", doctor_id=appt.slot.doctor_id))
+#     try:
+#         appt = slot.book(patient_id=patient_id, reason=reason)
+#         db.session.commit()
+#         flash("Appointment booked!", "success")
+#     except ValueError as e:
+#         flash(str(e), "danger")
+#     return redirect(url_for("appointments.check_availability", doctor_id=slot.doctor_id))
 
 

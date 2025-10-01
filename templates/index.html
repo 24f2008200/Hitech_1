@@ -66,7 +66,7 @@
     <div class="container">
       <a class="navbar-brand" href="{{ url_for('index') }}">HMS</a>
       {% if current_user.is_authenticated %}
-      <h2 class="mb-0">{{ current_user.name }}'s Dashboard</h2>
+      <h2 class="mb-0">{{ current_user.name +" "+current_user.last_name }}'s Dashboard</h2>
       {%else%}
       <h2 class="mb-0">Welcome Guest</h2>
       {% endif %}
@@ -87,7 +87,7 @@
             <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">Home</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('admin.add_department') }}">Add Dept</a>
+            <a class="nav-link" href="{{ url_for('admin.add_department' ) }}">Add Dept</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{{ url_for('admin.add_doctor') }}">Add Doc</a>

@@ -36,7 +36,7 @@ def admin_dashboard():
     for d in doctors:
         doctor_rows.append({
             "ID": d.id,
-            "Name": d.name,
+            "Name": d.name +" "+d.last_name,
             "Department": d.department.name if d.department else "—",
             "Status": d.status,
             "Actions": [
@@ -69,22 +69,37 @@ def admin_dashboard():
         "Doctors": ", ".join([ doc.name for doc in d.doctors  ]) ,
         "Actions": [
                 {"label": "Edit", "url": url_for("admin.edit_department", department_id=d.id), "color": "warning"},
-                {"label": "Delete", "url": url_for("admin.edit_department", department_id=d.id), "color": "danger"},
+                {"label": "Delete", "url": url_for("admin.delete_department", department_id=d.id), "color": "danger"},
             ],
         }
           for d in departments ] 
-    appointments_rows = get_appointment_rows()
+    appointments_rows = get_appointment_rows(active=True)
+
+    total_doctors = db.session.query(Doctor).count()
+    total_patients = db.session.query(Patient).count()
+    total_appointments = db.session.query(Appointment).count()
+
+    active_appointments = db.session.query(Appointment).filter_by(
+        status=AppointmentStatus.BOOKED
+    ).count()
+
+    closed_appointments = db.session.query(Appointment).filter_by(
+        status=AppointmentStatus.COMPLETED
+    ).count()
 
     tabs = [
+        {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
+         "total_appointments":total_appointments,"active_appointments":active_appointments,"closed_appointments":closed_appointments}},
         {"label": "Doctors", "columns": ["ID", "Name", "Department", "Status", "Actions"], "rows": doctor_rows},
         {"label": "Patients", "columns": ["ID", "Name", "Phone","Email","Status","Actions"], "rows": patient_rows},
         {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
         {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
-        {"label": "Availablilty", "page" : "dummy1.html"},
+        {"label": "Availablilty", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
 
     ]
 
-    return render_template("dashboard_base.html", title=None, tabs=tabs)
+    return render_template("dashboard_base.html", title=None, tabs=tabs,active_index=2)
+    # return render_template("dashboard_base.html", title=None, tabs=tabs,active_tab="availablilty")
 
 
 
@@ -138,7 +153,7 @@ def add_department():
 def edit_department(department_id):
     department = Department.query.get_or_404(department_id)
     edit_url = url_for("admin.edit_department",department_id=department_id)
-    home_url =get_home_url()
+    home_url = get_home_url()
     if request.method == "POST":
         if current_user.role != "admin":
             flash("❌ Unauthorized", "danger")
@@ -180,8 +195,35 @@ def edit_department(department_id):
 @admin_bp.route("/delete_department/<int:department_id>", methods=["GET", "POST"])
 @admin_required
 def delete_department(department_id):
-    return "todo"
+    ap = Department.query.get_or_404(department_id)
+    edit_url = url_for("admin.delete_department",department_id=department_id)
+    home_url =get_home_url()
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code !=department_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to cancel this appointment",
+                                   confirmation_code = department_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            db.session.delete(ap)
+            db.session.commit()
+            flash("✅ That  appoinment is cancelled", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error cancelling appointment: {e}", "danger")
+            return redirect(home_url)
 
+    return render_template('confirmation.html',
+                                   message ="Do You want to cancel this appointment",
+                                   confirmation_code = department_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
 
 @admin_bp.route("/doctors/new", methods=["GET", "POST"])
 @admin_required

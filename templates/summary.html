@@ -1,0 +1,41 @@
+
+{% block content %}
+{% set t  = tab.rows %}
+<div class="container mt-5">
+  <h2 class="mb-4">Admin Dashboard</h2>
+
+  <div class="row g-4">
+    <!-- Doctors -->
+    <div class="col-md-4">
+      <div class="card text-white bg-primary shadow-lg h-100">
+        <div class="card-body text-center">
+          <h5 class="card-title">Doctors</h5>
+          <h2 class="display-5 fw-bold">{{ t.total_doctors }}</h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- Patients -->
+    <div class="col-md-4">
+      <div class="card text-white bg-success shadow-lg h-100">
+        <div class="card-body text-center">
+          <h5 class="card-title">Patients</h5>
+          <h2 class="display-5 fw-bold">{{ t.total_patients }}</h2>
+        </div>
+      </div>
+    </div>
+
+    <!-- Appointments -->
+    <div class="col-md-4">
+      <div class="card text-dark bg-light shadow-lg h-100">
+        <div class="card-body text-center">
+          <h5 class="card-title">Appointments</h5>
+          <h2 class="display-5 fw-bold">{{ t.total_appointments }}</h2>
+          <p class="mb-1 text-success fw-semibold">Active: {{ t.active_appointments }}</p>
+          <p class="mb-0 text-secondary fw-semibold">Closed: {{ t.closed_appointments }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

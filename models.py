@@ -3,6 +3,7 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from sqlalchemy import Enum
 
 db = SQLAlchemy()
 # --------------------------
@@ -13,11 +14,54 @@ class AppointmentStatus(enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 
+class myModel:
+    def to_dict(self, include_relationships=False, seen=None):
+        if seen is None:
+            seen = set()
+        print("I am here now")
+
+        identity = (self.__class__, self.id)
+        if identity in seen:
+            return {"id": self.id}
+        seen.add(identity)
+
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+
+            # Handle datetime
+            if isinstance(value, datetime):
+                value = value.isoformat()
+
+            # Handle Enum (like AppointmentStatus)
+            elif isinstance(value, Enum):
+                print("I am here")
+                value = "Test" #value.value
+
+            # Handle booleans explicitly if needed (though JSON can already do True/False)
+            elif isinstance(value, bool):
+                value = bool(value)
+
+            result[column.name] = value
+
+        # Optionally serialize relationships
+        if include_relationships:
+            for rel in self.__mapper__.relationships:
+                related_value = getattr(self, rel.key)
+                if related_value is None:
+                    result[rel.key] = None
+                elif isinstance(related_value, list):  # one-to-many
+                    result[rel.key] = [item.to_dict(True, seen) for item in related_value]
+                else:  # many-to-one / one-to-one
+                    result[rel.key] = related_value.to_dict(True, seen)
+
+        return result
+
 
 # --------------------------
 # Base User Model
 # --------------------------
-class User(db.Model,UserMixin):
+class User(db.Model,UserMixin,myModel):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -61,7 +105,7 @@ class User(db.Model,UserMixin):
 # --------------------------
 # Admin
 # --------------------------
-class Admin(User):
+class Admin(User,myModel):
     __tablename__ = "admins"
 
     id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
@@ -76,7 +120,7 @@ class Admin(User):
 # --------------------------
 # Department
 # --------------------------
-class Department(db.Model):
+class Department(db.Model,myModel):
     __tablename__ = "departments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -127,7 +171,7 @@ class Patient(User):
 # --------------------------
 # Appointment 
 # --------------------------
-class Appointment(db.Model):
+class Appointment(db.Model,myModel):
     __tablename__ = "appointments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -163,7 +207,7 @@ class Appointment(db.Model):
         db.session.add(treatment)
         return treatment
 
-class Availability(db.Model):
+class Availability(db.Model,myModel):
     __tablename__ = "availability" 
     id = db.Column(db.Integer, primary_key=True)
 
@@ -188,8 +232,14 @@ class Availability(db.Model):
     def book(self, patient_id, reason=None):
         if self.is_busy:
             raise ValueError("This slot is already busy or booked.")
+        patient = Patient.query.get(patient_id)
+        if not patient:
+            raise ValueError("Patient not found.")
+        for appt in patient.appointments:
+            if appt.slot.date == self.date and appt.slot.session == self.session:
+                 raise ValueError("Patient already has an appointment in this slot.")
         appt = Appointment(
-            patient_id=patient_id,
+            patient=patient,
             doctor_id=self.doctor_id,   # ensure doctor_id is set
             slot=self,
             reason=reason,
@@ -211,7 +261,7 @@ class Availability(db.Model):
 # --------------------------
 # Treatment
 # --------------------------
-class Treatment(db.Model):
+class Treatment(db.Model,myModel):
     __tablename__ = "treatments"
 
     id = db.Column(db.Integer, primary_key=True)

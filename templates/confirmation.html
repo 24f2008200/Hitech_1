@@ -1,0 +1,18 @@
+{% extends "index.html" %}
+
+{% block title %}Confirm Action - HMS{% endblock %}
+{% block styles %}
+
+{% endblock %}
+{% block content %}
+
+<h2>{{ message }}</h2>
+<form method="post" action = {{ return_url}}>
+<input type="hidden" name="confirmation" id="selectedSession" value = {{confirmation_code}}>
+<button>{{button_msg}}</button>
+</form>
+
+{% endblock %}
+{% block scripts %}
+
+{% endblock %} 

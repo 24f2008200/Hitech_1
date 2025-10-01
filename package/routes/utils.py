@@ -30,7 +30,7 @@ def get_home_url():
     else:
         return url_for("login")
 
-def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None, active=None):
+def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None, active=None,actions =None):
 
     query = Appointment.query.join(Patient, Appointment.patient_id == Patient.id)\
                              .join(Doctor, Appointment.doctor_id == Doctor.id)\
@@ -55,7 +55,11 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
     if filters:
         query = query.filter(and_(*filters))
 
-    appointments = query.all()
+    appointments = query.order_by(Availability.date.asc()).all()
+    if not actions:
+        actions =[{"label":"View","url":"patient.edit_appointment", "color": "warning"},
+                  {"label":"Delete","url":"patient.delete_appointment", "color": "danger"},]
+    
 
     appointment_rows = [
         {
@@ -66,9 +70,9 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
             "Session": a.slot.session,
             "Department": a.doctor.department.name if a.doctor.department else "N/A",
             "Status": a.status.value,  # BOOKED / CANCELLED / COMPLETED
-            "Actions": [
-                {"label": "Edit", "url": url_for("patient.edit_appointment", appointment_id=a.id), "color": "warning"},
-                {"label": "Delete", "url": url_for("patient.delete_appointment", appointment_id=a.id), "color": "danger"},
+            "Actions": [{"label":p["label"],"url":url_for(p["url"],appointment_id=a.id),"color":p["color"]} for p in actions
+                # {"label": "View", "url": url_for("patient.edit_appointment", appointment_id=a.id), "color": "warning"},
+                # {"label": "Delete", "url": url_for("patient.delete_appointment", appointment_id=a.id), "color": "danger"},
             ],
         }
         for a in appointments
