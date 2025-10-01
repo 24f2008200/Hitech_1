@@ -87,7 +87,7 @@ with app.app_context():
     for doctor in doctors:
         for i in range(5):  # next 5 days
             for session in sessions:
-                avail = Availability(
+                avail = Slot(
                     doctor=doctor,
                     date=(datetime.today() + timedelta(days=i)).date(),
                     session=session,

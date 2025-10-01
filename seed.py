@@ -3,7 +3,7 @@ from faker import Faker
 import random
 from datetime import date, timedelta
 
-from models import db, Admin, Department, Doctor, Patient, Availability, Appointment, AppointmentStatus, Treatment, User
+from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database.sqlite3"
@@ -81,7 +81,7 @@ def seed_database():
     print(f"✅ Created {len(doctors)} doctors")
 
     # -----------------
-    # Availability: 90 days × 2 sessions = 180 slots per doctor
+    # Slot: 90 days × 2 sessions = 180 slots per doctor
     # -----------------
     sessions = ["08:00 - 12:00 am", "04:00 - 09:00 pm"]
     start_date = date.today()
@@ -91,7 +91,7 @@ def seed_database():
         for offset in range(90):
             d = start_date + timedelta(days=offset)
             for sess in sessions:
-                slot = Availability(doctor=doc, date=d, session=sess, available=True)
+                slot = Slot(doctor=doc, date=d, session=sess, available=True)
                 db.session.add(slot)
                 slots_by_doctor[doc.id].append(slot)
     db.session.commit()

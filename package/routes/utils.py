@@ -1,6 +1,6 @@
 
 from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
-from models import db,Admin ,  Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Availability
+from models import db,Admin ,  Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Slot
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token
 from models import AppointmentStatus
@@ -34,7 +34,7 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
 
     query = Appointment.query.join(Patient, Appointment.patient_id == Patient.id)\
                              .join(Doctor, Appointment.doctor_id == Doctor.id)\
-                             .join(Availability, Appointment.slot_id == Availability.id)
+                             .join(Slot, Appointment.slot_id == Slot.id)
 
     filters = []
 
@@ -43,7 +43,7 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
     if pat_id:
         filters.append(Appointment.patient_id == pat_id)
     if start_date:
-        filters.append(Availability.date >= start_date)
+        filters.append(Slot.date >= start_date)
     if dept_id:
         filters.append(Doctor.department_id == dept_id)
     if active is not None:
@@ -55,7 +55,7 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
     if filters:
         query = query.filter(and_(*filters))
 
-    appointments = query.order_by(Availability.date.asc()).all()
+    appointments = query.order_by(Slot.date.asc()).all()
     if not actions:
         actions =[{"label":"View","url":"patient.edit_appointment", "color": "warning"},
                   {"label":"Delete","url":"patient.delete_appointment", "color": "danger"},]

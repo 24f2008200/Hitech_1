@@ -160,7 +160,7 @@ def appointments_book(doctor_id):
     selected_date = datetime.fromisoformat(date_str).date()
 
     # find availability
-    spot = Availability.query.filter_by(
+    spot = Slot.query.filter_by(
         doctor_id=doctor_id, date=selected_date, session=session
     ).first()
 
@@ -232,8 +232,7 @@ def patient_history(patient_id):
         for appt in patient.appointments
         if appt.treatment is not None
     ]
-    for t in treatments:
-        print (t)
+
     all_visits = []
     for tr in treatments:
         all_visits.append({
@@ -324,12 +323,12 @@ def update_slot(doctor_id):
     session = data["session"]
     available = data["available"]
 
-    rec = Availability.query.filter_by(
+    rec = Slot.query.filter_by(
         doctor_id=doctor_id, date=date.fromisoformat(date_str), session=session
     ).first()
 
     if not rec:
-        rec = Availability(
+        rec = Slot(
             doctor_id=doctor_id,
             date=date.fromisoformat(date_str), # type: ignore
             session=session,
@@ -346,7 +345,7 @@ def update_slot(doctor_id):
 
 # @patient_bp.route("/appointments/book/<int:slot_id>", methods=["POST"])
 # def book(slot_id):
-#     slot = Availability.query.get_or_404(slot_id)
+#     slot = Slot.query.get_or_404(slot_id)
 #     patient_id = request.form["patient_id"]
 #     reason = request.form.get("reason")
 

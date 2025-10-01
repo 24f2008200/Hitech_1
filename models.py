@@ -18,7 +18,6 @@ class myModel:
     def to_dict(self, include_relationships=False, seen=None):
         if seen is None:
             seen = set()
-        print("I am here now")
 
         identity = (self.__class__, self.id)
         if identity in seen:
@@ -142,7 +141,7 @@ class Doctor(User):
     experience = db.Column(db.Integer)
     department = db.relationship("Department", back_populates="doctors")
     appointments = db.relationship("Appointment", back_populates="doctor")
-    availability = db.relationship("Availability", back_populates="doctor", cascade="all, delete-orphan")
+    availability = db.relationship("Slot", back_populates="doctor", cascade="all, delete-orphan")
 
 
     __mapper_args__ = {
@@ -183,7 +182,7 @@ class Appointment(db.Model,myModel):
     reason = db.Column(db.Text)
 
     patient = db.relationship("Patient", back_populates="appointments")
-    slot = db.relationship("Availability", back_populates="appointment")
+    slot = db.relationship("Slot", back_populates="appointment")
     doctor = db.relationship("Doctor", back_populates="appointments")   # <-- now valid
     treatment = db.relationship("Treatment", back_populates="appointment", uselist=False)
 
@@ -207,16 +206,16 @@ class Appointment(db.Model,myModel):
         db.session.add(treatment)
         return treatment
 
-class Availability(db.Model,myModel):
+class Slot(db.Model,myModel):
     __tablename__ = "availability" 
     id = db.Column(db.Integer, primary_key=True)
 
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     session = db.Column(db.String(20), nullable=False)   # morning / evening
-    available = db.Column(db.Boolean, default=True, nullable=False)
+    # available = db.Column(db.Boolean, default=True, nullable=False)
     block_reason = db.Column(db.Text, nullable=True)      # <-- NEW
-
+    available = db.Column(db.Boolean, default=True, nullable=False)
     __table_args__ = (
         db.UniqueConstraint("doctor_id", "date", "session", name="unique_doctor_slot"),
     )
@@ -226,28 +225,45 @@ class Availability(db.Model,myModel):
 
     @property
     def is_busy(self):
-        """Slot is busy if unavailable or linked to an appointment."""
-        return not self.available or self.appointment is not None
+        return self.appointment is not None and self.appointment.status == AppointmentStatus.BOOKED
+
+    @property
+    def is_free(self):
+        return not self.is_busy
 
     def book(self, patient_id, reason=None):
         if self.is_busy:
-            raise ValueError("This slot is already busy or booked.")
+            raise ValueError("This slot is already booked.")
+
         patient = Patient.query.get(patient_id)
         if not patient:
             raise ValueError("Patient not found.")
+
+        # Check double-booking for the patient
         for appt in patient.appointments:
-            if appt.slot.date == self.date and appt.slot.session == self.session:
-                 raise ValueError("Patient already has an appointment in this slot.")
+            if (
+                appt.slot.date == self.date
+                and appt.slot.session == self.session
+                and appt.status == AppointmentStatus.BOOKED
+            ):
+                raise ValueError("Patient already has an appointment in this slot.")
+
         appt = Appointment(
             patient=patient,
-            doctor_id=self.doctor_id,   # ensure doctor_id is set
+            doctor_id=self.doctor_id,
             slot=self,
             reason=reason,
+            status=AppointmentStatus.BOOKED,
         )
-        self.available = False
         db.session.add(appt)
         return appt
 
+    def cancel(self):
+        if not self.is_busy:
+            raise ValueError("No active appointment to cancel.")
+
+        self.appointment.status = AppointmentStatus.CANCELLED
+        db.session.add(self.appointment)
 
     def block(self, reason=None):
         """Block this slot without creating an appointment."""
