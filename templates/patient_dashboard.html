@@ -85,7 +85,7 @@
         {% for dept in departments %}
         <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
           <span>{{ dept.name }}</span>
-          <a href="{{ url_for('department_details', dept_id=dept.id) }}" class="btn btn-outline-primary btn-sm">View
+          <a href="{{ url_for('admin.department_details', dept_id=dept.id) }}" class="btn btn-outline-primary btn-sm">View
             Details</a>
         </div>
         {% endfor %}

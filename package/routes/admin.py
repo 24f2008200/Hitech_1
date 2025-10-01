@@ -1,0 +1,394 @@
+from flask import Blueprint, render_template, request, abort
+from flask_login import current_user ,LoginManager
+from models import *
+from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
+from package.routes.auth import *
+from package.routes.utils import *
+
+
+login_manager = LoginManager()  
+admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+
+
+
+
+
+
+@admin_bp.route("/department_details/<int:dept_id>", methods=["GET"])
+@login_required
+def department_details(dept_id):
+
+    department = Department.query.get_or_404(dept_id)
+    doctors = Doctor.query.filter_by(department_id=dept_id).all()
+
+    return render_template(
+        "department_details.html",
+        department=department,
+        doctors=doctors
+    )
+
+
+@admin_bp.route("/dashboard", methods=["GET", "POST"])
+@admin_required
+def admin_dashboard():
+    doctors = Doctor.query.all()
+    doctor_rows = []
+    for d in doctors:
+        doctor_rows.append({
+            "ID": d.id,
+            "Name": d.name,
+            "Department": d.department.name if d.department else "—",
+            "Status": d.status,
+            "Actions": [
+                {"label": "Edit", "url": url_for("doctor.edit_doctor", doctor_id=d.id), "color": "warning"},
+                {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
+                {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
+            ],
+        })
+
+    patients = Patient.query.all()
+    patient_rows = [{
+        "ID": p.id, 
+        "Name": p.name + " " + p.last_name, 
+        "Phone": p.phone,
+        "Email": p.email,
+        "Status": "OK" if p.status == "active" else "Blocked",
+         "Actions": [
+                {"label": "Edit", "url": url_for("admin.edit_patient", patient_id=p.id), "color": "warning"},
+                {"label": "Delete", "url": url_for("admin.delete_patient", patient_id=p.id), "color": "danger"},
+                {"label": "Blacklist", "url": url_for("admin.blacklist_patient", patient_id=p.id), "color": "dark"},
+            ],
+
+        } 
+        for p in patients]
+
+    departments = Department.query.all()
+    department_rows = [{
+        "Name": d.name , 
+        "Description": d.description, 
+        "Doctors": ", ".join([ doc.name for doc in d.doctors  ]) ,
+        "Actions": [
+                {"label": "Edit", "url": url_for("admin.edit_department", department_id=d.id), "color": "warning"},
+                {"label": "Delete", "url": url_for("admin.edit_department", department_id=d.id), "color": "danger"},
+            ],
+        }
+          for d in departments ] 
+    appointments_rows = get_appointment_rows()
+
+    tabs = [
+        {"label": "Doctors", "columns": ["ID", "Name", "Department", "Status", "Actions"], "rows": doctor_rows},
+        {"label": "Patients", "columns": ["ID", "Name", "Phone","Email","Status","Actions"], "rows": patient_rows},
+        {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
+        {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
+        {"label": "Availablilty", "page" : "dummy1.html"},
+
+    ]
+
+    return render_template("dashboard_base.html", title=None, tabs=tabs)
+
+
+
+@admin_bp.route("/add_department", methods=["GET", "POST"])
+@admin_required
+def add_department():
+    department = None
+    add_url = url_for("admin.add_department")
+    home_url =get_home_url()
+    if request.method == "POST":
+        if current_user.role != "admin":
+            flash("❌ Unauthorized", "danger")
+            return redirect(url_for("home"))
+
+        
+        deptName = request.form["deptName"]
+        description = request.form["description"]
+        
+        department = Department(name=deptName, description = description)
+        db.session.add(department)
+        db.session.flush()
+
+        try:
+            db.session.commit()
+            flash("✅ Department added successfully!", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating Department: {e}", "danger")
+            return redirect(add_url)
+
+    department_form = {
+        "action": add_url,
+        "method": "POST",
+        "fields": [
+            {"label": "Department Name", "name": "deptName", "type": "text",
+            "required": True, "value": field_value(department, "deptName")},
+
+            {"label": "Description", "name": "description", "type": "textarea",
+            "value": field_value(department, "description")},
+        ],
+        "submit_label": "Add Department",
+        "other_buttons" :[{"label" :"Back" ,"url":home_url}],
+    }
+    
+    return render_template("form_base.html", form = department_form ,title = "Add Department")
+
+
+@admin_bp.route("/edit_department/<int:department_id>", methods=["GET", "POST"])
+@admin_required
+def edit_department(department_id):
+    department = Department.query.get_or_404(department_id)
+    edit_url = url_for("admin.edit_department",department_id=department_id)
+    home_url =get_home_url()
+    if request.method == "POST":
+        if current_user.role != "admin":
+            flash("❌ Unauthorized", "danger")
+            return redirect(url_for("home"))
+
+        
+        deptName = request.form["deptName"]
+        description = request.form["description"]
+        
+        department.name = deptName
+        department.description = description
+
+        try:
+            db.session.commit()
+            flash("✅ Department added successfully!", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating Department: {e}", "danger")
+            return redirect(edit_url)
+
+    department_form = {
+        "action": edit_url,
+        "method": "POST",
+        "fields": [
+            {"label": "Department Name", "name": "deptName", "type": "text",
+            "required": True, "value": field_value(department, "name")},
+
+            {"label": "Description", "name": "description", "type": "textarea",
+            "value": field_value(department, "description")},
+        ],
+        "submit_label": "Update Department",
+        "other_buttons" :[{"label" :"Back" ,"url": home_url}],
+    }
+    
+    return render_template("form_base.html", form = department_form ,title = "Update Department")
+
+
+@admin_bp.route("/delete_department/<int:department_id>", methods=["GET", "POST"])
+@admin_required
+def delete_department(department_id):
+    return "todo"
+
+
+@admin_bp.route("/doctors/new", methods=["GET", "POST"])
+@admin_required
+def add_doctor():
+    doctor = None
+    add_url = url_for("admin.add_doctor")
+    home_url =get_home_url()
+    if request.method == "POST":
+        name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        dob_str = request.form.get("dob")
+        if dob_str:
+            try:
+                dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+                return redirect(add_url)
+        else:
+            dob = None
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+        address = request.form.get("address")
+        license_number = request.form.get("license_number")
+        experience = request.form.get("experience")
+        dept_id = request.form.get("department_id")
+        password = request.form.get("password")
+        print(name,dept_id)
+        if not name or not dept_id or not email:
+            flash("name and specialization are required.", "danger")
+            return redirect(home_url)
+        if (get_userID_fromEmail(email) is not None):
+            flash("That  eEmail is in use.", "danger")
+            return redirect(add_url)
+
+            
+        doctor = Doctor(
+            name=name,
+            last_name=last_name,
+            dob=dob,
+            email=email,
+            phone =phone,
+            address = address,
+            license_number =license_number,
+            experience=int(experience) if experience else None,
+            department_id=int(dept_id) if dept_id else None,
+            password=password
+        )
+        db.session.add(doctor)
+        try:
+            db.session.commit()
+            flash("Doctor added successfully!", "success")
+            return redirect(home_url)  
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating doctor: {e}", "danger")
+            return redirect(add_url)
+
+    departments = Department.query.all()
+
+    doctor_form = {
+        "action": add_url,
+        "method": "POST",
+        "fields": [
+            {"label": "First Name", "name": "first_name", "type": "text",
+            "required": True, "value": field_value(doctor, "name")},
+
+            {"label": "Last Name", "name": "last_name", "type": "text",
+            "value": field_value(doctor, "last_name")},
+
+            {"label": "Date of Birth", "name": "dob", "type": "date",
+            "required": False, "value":field_value(doctor, "dob")},
+
+            {"label": "Email", "name": "email", "type": "email",
+            "required": True, "value":field_value(doctor, "email")},
+
+            {"label": "Phone", "name": "phone", "type": "text",
+            "value":field_value(doctor, "phone")},
+
+            {"label": "Address", "name": "address", "type": "textarea",
+            "value":field_value(doctor, "address")},
+            
+            {"label": "License_number", "name": "license_number", "type": "text",
+            "required": True, "value":field_value(doctor, "license_number")},
+
+            {"label": "Experience in Years", "name": "experience", "type": "text",
+            "value":field_value(doctor, "experience")},
+
+            {"label": "Department", "name": "department_id", "type": "select",
+            "options": [(d.id, d.name) for d in departments],
+            "required": True, "value": field_value(doctor, "department_id")},
+
+            {"label": "Password", "name": "password", "type": "text",
+            "required": True, "value":""},
+        ],
+        "submit_label": "Add Doctor",
+        "other_buttons" :[{"label" :"Back" ,"url": home_url}],
+    }
+    
+    return render_template("form_base.html", form = doctor_form ,title = "Add Doctor")
+
+
+
+@admin_bp.route("/delete_doctor/<int:doctor_id>", methods=["GET", "POST"])
+@admin_required
+def delete_doctor(doctor_id):
+    return "todo"
+
+
+@admin_bp.route("/blacklist_doctor/<int:doctor_id>", methods=["GET", "POST"])
+@admin_required
+def blacklist_doctor(doctor_id):
+    return "todo"
+
+
+
+@admin_bp.route("/edit_patient/<int:patient_id>", methods=["GET", "POST"])
+@role_required("admin", "patient")
+def edit_patient(patient_id):
+    patient = User.query.get_or_404(patient_id)
+    edit_url = url_for("admin.edit_patient",patient_id=patient_id)
+    home_url =get_home_url()
+    if request.method == "POST":
+        name = request.form.get("first_name")
+        last_name = request.form.get("last_name")
+        dob_str = request.form.get("dob")
+        if dob_str:
+            try:
+                dob = datetime.strptime(dob_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Invalid date format. Please use YYYY-MM-DD.", "danger")
+                return redirect(edit_url)
+        else:
+            dob = None
+        email = request.form.get("email")
+        phone = request.form.get("phone")
+        address = request.form.get("address")
+        password = request.form.get("password")
+
+        if not name or not password:
+            flash("name and password are required.", "danger")
+            return redirect(edit_url)
+        if (get_userID_fromEmail(email) != patient_id):
+            flash("That  eEmail is in use.", "danger")
+            return redirect(edit_url)
+        patient.name = name
+        patient.last_name = last_name
+        patient.email = email
+        patient.phone = phone
+        patient.address = address
+        patient.dob = dob
+
+
+        if password:  # only update password if user entered a new one
+            patient.set_password(password)
+
+        try:
+            db.session.commit()
+            flash("patient updated successfully.", "success")
+            return redirect(home_url)  
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error updating patient: {e}", "danger")
+            return redirect(edit_url)
+        
+    patient_form = {
+        "action": edit_url,
+        "method": "POST",
+        "fields": [
+            {"label": "First Name", "name": "first_name", "type": "text",
+            "required": True, "value": field_value(patient, "name")},
+
+            {"label": "Last Name", "name": "last_name", "type": "text",
+            "value": field_value(patient, "last_name")},
+
+            {"label": "Date of Birth", "name": "dob", "type": "date",
+            "required": False, "value":field_value(patient, "dob")},
+
+            {"label": "Email", "name": "email", "type": "email",
+            "required": True, "value":field_value(patient, "email")},
+
+            {"label": "Phone", "name": "phone", "type": "text",
+            "value":field_value(patient, "phone")},
+
+            {"label": "Address", "name": "address", "type": "textarea",
+            "value":field_value(patient, "address")},
+            
+            {"label": "Password", "name": "password", "type": "text",
+            "required": False, "value":""},
+        ],
+
+        "other_buttons" :[{"label" :"Back" ,"url": home_url}],
+        "submit_label": "Update patient"
+    }
+    
+
+    # GET request – render the edit form
+    return render_template("form_base.html", form = patient_form ,title = "Edit patient")
+
+
+
+@admin_bp.route("/delete_patient/<int:patient_id>", methods=["GET", "POST"])
+@admin_required
+def delete_patient(patient_id):
+    return "todo"
+
+
+@admin_bp.route("/blacklist_patient/<int:patient_id>", methods=["GET", "POST"])
+@admin_required
+def blacklist_patient(patient_id):
+    return "todo"

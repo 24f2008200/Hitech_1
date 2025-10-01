@@ -84,41 +84,41 @@
           <!-- Admin only -->
           {% if current_user.is_authenticated and current_user.role == 'admin' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('admin_dashboard') }}">Home</a>
+            <a class="nav-link" href="{{ url_for('admin.admin_dashboard') }}">Home</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('add_department') }}">Add Dept</a>
+            <a class="nav-link" href="{{ url_for('admin.add_department') }}">Add Dept</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('add_doctor') }}">Add Doc</a>
+            <a class="nav-link" href="{{ url_for('admin.add_doctor') }}">Add Doc</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for("edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
+            <a class="nav-link" href="{{ url_for("admin.edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
           </li>
           {% endif %}
 
           <!-- Doctor only -->
           {% if current_user.is_authenticated and current_user.role == 'doctor' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('doctor_dashboard') }}">Home</a>
+            <a class="nav-link" href="{{ url_for('doctor.doctor_dashboard') }}">Home</a>
             </li><li>
-            <a class="nav-link" href="{{ url_for('availability') }}">Availability</a>
+            <a class="nav-link" href="{{ url_for('doctor.availability') }}">Availability</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for("edit_doctor",doctor_id=current_user.id)}}">Edit Profile</a>
+            <a class="nav-link" href="{{ url_for("doctor.edit_doctor",doctor_id=current_user.id)}}">Edit Profile</a>
           </li>
           {% endif %}
 
           <!-- Patient only -->
           {% if current_user.is_authenticated and current_user.role == 'patient' %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('patient_dashboard') }}">Home</a>
+            <a class="nav-link" href="{{ url_for('patient.patient_dashboard') }}">Home</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('patient_history' ,patient_id=current_user.id) }}">History</a>
+            <a class="nav-link" href="{{ url_for('patient.patient_history' ,patient_id=current_user.id) }}">History</a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for("edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
+            <a class="nav-link" href="{{ url_for("admin.edit_patient",patient_id=current_user.id) }}">Edit Profile</a>
           </li>
           {% endif %}
 
@@ -134,7 +134,7 @@
             <a class="nav-link" href="{{ url_for('login') }}">Login</a>
           </li>
           <li>
-            <a class="nav-link" href="{{ url_for('register') }}">Register</a>
+            <a class="nav-link" href="{{ url_for('patient.register') }}">Register</a>
           </li>
           {% endif %}
 

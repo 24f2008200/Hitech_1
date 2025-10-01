@@ -105,11 +105,6 @@ class Doctor(User):
         "polymorphic_identity": "doctor",
     }
 
-    # def __init__(self, **kwargs):
-    #     self.department = kwargs.pop("department", None) 
-    #     self.license_number =kwargs.pop("license_number", None)
-    #     super().__init__(**kwargs)
-
 # --------------------------
 # Patient 
 # --------------------------

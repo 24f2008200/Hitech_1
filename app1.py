@@ -52,7 +52,7 @@ def login():
         if user and user.check_password(request.form['password']):
             login_user(user)  # stores ID in session
             role = user.role
-            dashboard = "admin_dashboard" if role =="admin" else "doctor_dashboard" if role =="doctor" else "patient_dashboard"
+            dashboard = "admin_dashboard" if role =="admin" else "doctor_dashboard" if role =="doctor" else "patient.patient_dashboard"
             return redirect(url_for(dashboard))
         return "Invalid credentials", 401
     return render_template("login.html")
