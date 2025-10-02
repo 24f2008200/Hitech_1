@@ -1,0 +1,217 @@
+git ls-files
+
+git rm -r --cached .
+
+git add .gitignore
+git add .
+
+
+git commit -m "Remove all tracked files"
+
+git remote add origin https://github.com/24f2008200/Hitech_1.git
+git remote -v
+
+git pull origin main --allow-unrelated-histories
+
+git push origin main
+
+git push -u origin main
+
+git push -u origin master
+
+git branch   ==== to find branch name ?
+
+
+See commit history
+git log --oneline
+
+This will show you all the commits with their short commit IDs (hashes). Example:
+
+a1b2c3d Updated ParkingLot model
+d4e5f6a Fixed modal bug
+7f8g9h1 Initial commit
+
+
+See changes in a specific commit
+git show <commit-id>
+
+Example:
+
+git show a1b2c3d
+
+
+Compare file with an old version
+
+To see what changed in a specific file compared to an older commit:
+
+git diff <old-commit-id> -- path/to/file.py
+
+
+Example:
+
+git diff d4e5f6a models.py
+
+
+See old content of a file
+git show <commit-id>:path/to/file.py
+
+
+Example:
+
+git show a1b2c3d:backend/models.py
+
+
+This will print the version of models.py at that commit.
+
+###########################################################
+
+# 1️⃣ Backup your current repo
+cd /i/IIT/Term5
+cp -r vehicle_parking vehicle_parking_backup
+
+# 2️⃣ Remove any problematic desktop.ini from .git
+cd vehicle_parking/.git
+find . -name "desktop.ini" -type f -delete
+
+# 3️⃣ Clean reflogs and garbage
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+# 4️⃣ Check repo integrity
+git fsck
+
+# 5️⃣ Go back to project root
+cd ..
+
+# 6️⃣ Rename local branch to 'main'
+git branch -m master main
+
+# 7️⃣ Add remote if not already present
+git remote add origin https://github.com/<your-username>/<repo>.git
+
+# 8️⃣ Force push local main to remote (overwrite remote if needed)
+git push origin main --force
+
+# 9️⃣ Optional: Delete old remote master branch
+git push origin --delete master
+
+# 🔟 Set upstream tracking for future pushes/pulls
+git push -u origin main
+
+# 1️⃣1️⃣ Verify branches
+git branch -a
+
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@24f2008200
+
+# Syntax
+git push origin <local-branch>:<remote-branch>
+
+# Example
+git push origin feature1:new-feature
+feature1 → your local branch
+
+new-feature → the branch name on GitHub
+
+If new-feature doesn’t exist yet, GitHub will create it.
+
+
+What you can do
+
+Stage everything (modified + new files):
+
+git add -A
+
+
+Commit with a message:
+
+git commit -m "Updated backend files and added diagnostics.py"
+
+
+Push to GitHub:
+
+git push origin main
+
+If you only want to commit specific files:
+git add ../backend/app.py ../backend/models.py
+git commit -m "Updated app and models"
+git push origin main
+
+
+
+
+++++++++++++++++++++++++++++++++
+Downloading an old version of a project from GitHub can be done through the web interface or using Git commands.
+   Using Git Commands (for cloned repositories)
+Clone the Repository (if not already cloned):
+Code
+
+    git clone <repository_url>
+Navigate to the Repository Directory.
+Code
+
+    cd <repository_name>
+View Commit History.
+Code
+
+    git log --oneline
+This will display a list of commits with their abbreviated hashes and messages. Checkout the Desired Commit.
+Code
+
+    git checkout <commit_hash>
+Replace <commit_hash> with the full or abbreviated hash of the commit you want to download. This will change your local working directory to reflect the state of the repository at that commit.
+Create a New Branch (Optional): If you want to work on this old version without affecting your main branch, you can create a new branch from this commit:
+Code
+
+    git checkout -b <new_branch_name>
+Note: Downloading a ZIP from the web interface provides a snapshot without the Git history. Using Git commands allows you to actively work with different versions and retain the full version control capabilities.
+
+
+======================================================
+
+Rename the local branch:
+If you are currently on the branch you want to rename: 
+Code
+
+    git branch -m new-branch-name
+
+f you are on a different branch:
+Code
+
+    git branch -m old-branch-name new-branch-name
+2. Push the new branch to the remote repository and delete the old remote branch:
+Code
+
+git push origin -u new-branch-name
+git push origin --delete old-branch-name
+
+
+If it still errors, do a fresh fetch and reset:
+
+git fetch origin
+git rebase origin/main
+
+
+If you don’t care about remote history (overwrite everything)
+
+You can force push:
+
+git push -u origin main --force
+
+======================================================
+You just want to throw away all changes made after the last commit and go back to the state of that commit.
+
+Run:
+
+git reset --hard HEAD
+
+
+That will:
+
+Reset tracked files back to how they were at the last commit.
+
+Discard staged and unstaged changes.
+
+👉 If you also created new untracked files that you want to delete too, run:
+
+git clean -fd

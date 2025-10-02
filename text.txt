@@ -1,0 +1,39 @@
+
+python -m venv .venv
+source venv/Scripts/activate
+pip install -r requirements.txt
+python -m pip install -r requirements.txt
+./venv/Scripts/python.exe -m pip install -r requirements.txt
+
+npm install bootstrap-table
+
+python -m backend.init_db
+
+python -m backend.app
+
+
+
+
+hospital_app/
+│── app.py
+│── models.py     (your SQLAlchemy models)
+│── templates/
+│    ├── base.html
+│    ├── login.html
+│    ├── register_patient.html
+│    ├── dashboard_admin.html
+│    ├── dashboard_doctor.html
+│    └── dashboard_patient.html
+│── static/
+     └── style.css
+
+Admin dashboard - list appoinments. - edit . make appointments.
+
+doctors dashbord - list of appointments - button to edit - edit_appointments comes up.
+Edit appointments - including status change.
+
+
+Doctors to have self appointment to indicate thier non-availability
+
+
+patients also edit appointment including cancel.

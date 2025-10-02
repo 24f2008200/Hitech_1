@@ -26,5 +26,5 @@ Mad1_P/
 .vscode/
 .venv/
 
-*.txt
+#*.txt
 get_pip.py

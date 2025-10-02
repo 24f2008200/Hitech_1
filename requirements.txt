@@ -1,0 +1,17 @@
+flask
+flask_restful
+flask_sqlalchemy
+flask_migrate
+flask_jwt_extended
+python-dotenv
+redis
+celery
+werkzeug
+flask_bcrypt
+flask_cors
+redis 
+celery 
+flask-caching
+reportlab
+flask-wtf
+flask_login
