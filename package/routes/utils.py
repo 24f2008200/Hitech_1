@@ -10,6 +10,8 @@ from flask_wtf import CSRFProtect
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
 from datetime import datetime ,timedelta ,date
 from sqlalchemy import and_
+from sqlalchemy.orm import aliased
+
 
 def field_value(obj, attr, default=""):
     if obj is None:
@@ -30,11 +32,23 @@ def get_home_url():
     else:
         return url_for("login")
 
-def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None, active=None,actions =None):
 
-    query = Appointment.query.join(Patient, Appointment.patient_id == Patient.id)\
-                             .join(Doctor, Appointment.doctor_id == Doctor.id)\
-                             .join(Slot, Appointment.slot_id == Slot.id)
+
+
+def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
+                         dept_id=None, active=None, actions=None):
+
+    # Explicit aliases to avoid overlap warnings
+    DoctorAlias = aliased(Doctor, flat=True)
+    PatientAlias = aliased(Patient, flat=True)
+    SlotAlias = aliased(Slot, flat=True)
+
+    query = (
+        Appointment.query
+        .join(PatientAlias, Appointment.patient_id == PatientAlias.id)
+        .join(DoctorAlias, Appointment.doctor_id == DoctorAlias.id)
+        .join(SlotAlias, Appointment.slot_id == SlotAlias.id)
+    )
 
     filters = []
 
@@ -43,9 +57,9 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
     if pat_id:
         filters.append(Appointment.patient_id == pat_id)
     if start_date:
-        filters.append(Slot.date >= start_date)
+        filters.append(SlotAlias.date >= start_date)
     if dept_id:
-        filters.append(Doctor.department_id == dept_id)
+        filters.append(DoctorAlias.department_id == dept_id)
     if active is not None:
         if active: 
             filters.append(Appointment.status == AppointmentStatus.BOOKED)
@@ -55,7 +69,9 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None, dept_id=None
     if filters:
         query = query.filter(and_(*filters))
 
-    appointments = query.order_by(Slot.date.asc()).all()
+    appointments = query.order_by(SlotAlias.date.asc()).all()
+
+
     if not actions:
         actions =[{"label":"View","url":"patient.edit_appointment", "color": "warning"},
                   {"label":"Delete","url":"patient.delete_appointment", "color": "danger"},]

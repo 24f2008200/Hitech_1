@@ -13,6 +13,10 @@ class AppointmentStatus(enum.Enum):
     BOOKED = "booked"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
+class Sessions(enum.Enum):
+    S1 = "08:00 - 12:00 am"
+    S2 = "04:00 - 09:00 pm"
+    
 
 class myModel:
     def to_dict(self, include_relationships=False, seen=None):
@@ -193,7 +197,7 @@ class Appointment(db.Model,myModel):
         if self.status != AppointmentStatus.BOOKED:
             raise ValueError("Only booked appointments can be cancelled.")
         self.status = AppointmentStatus.CANCELLED
-        self.slot.available = True
+        self.slot.is_free = True
         db.session.add(self)
 
     def complete(self, treatment_data=None):
@@ -201,7 +205,8 @@ class Appointment(db.Model,myModel):
         if self.status != AppointmentStatus.BOOKED:
             raise ValueError("Only booked appointments can be completed.")
         self.status = AppointmentStatus.COMPLETED
-        self.slot.available = False  # slot stays closed
+        self.slot.is_free = False
+        self.slot.available = False # slot stays closed
         treatment = Treatment(appointment=self, **(treatment_data or {}))
         db.session.add(treatment)
         return treatment
@@ -213,26 +218,30 @@ class Slot(db.Model,myModel):
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     session = db.Column(db.String(20), nullable=False)   # morning / evening
-    # available = db.Column(db.Boolean, default=True, nullable=False)
     block_reason = db.Column(db.Text, nullable=True)      # <-- NEW
     available = db.Column(db.Boolean, default=True, nullable=False)
-    __table_args__ = (
-        db.UniqueConstraint("doctor_id", "date", "session", name="unique_doctor_slot"),
-    )
+    is_free = db.Column(db.Boolean, default=True, nullable=False)
+
 
     doctor = db.relationship("Doctor", back_populates="availability")
     appointment = db.relationship("Appointment", back_populates="slot", uselist=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("doctor_id", "date", "session", name="unique_doctor_slot"),
+    )
 
     @property
     def is_busy(self):
         return self.appointment is not None and self.appointment.status == AppointmentStatus.BOOKED
 
-    @property
-    def is_free(self):
-        return not self.is_busy
+    # @property
+    # def is_free(self):
+    #     return self.available and not self.is_busy
 
     def book(self, patient_id, reason=None):
-        if self.is_busy:
+        if not self.available:
+            raise ValueError("This slot is not available.")
+        if not self.is_free:
             raise ValueError("This slot is already booked.")
 
         patient = Patient.query.get(patient_id)
@@ -249,12 +258,13 @@ class Slot(db.Model,myModel):
                 raise ValueError("Patient already has an appointment in this slot.")
 
         appt = Appointment(
-            patient=patient,
-            doctor_id=self.doctor_id,
-            slot=self,
-            reason=reason,
-            status=AppointmentStatus.BOOKED,
-        )
+        patient_id=patient.id,
+        doctor_id=self.doctor_id,
+        slot_id=self.id,
+        reason=reason,
+        status=AppointmentStatus.BOOKED,
+            )
+        self.is_free = False
         db.session.add(appt)
         return appt
 
@@ -263,13 +273,24 @@ class Slot(db.Model,myModel):
             raise ValueError("No active appointment to cancel.")
 
         self.appointment.status = AppointmentStatus.CANCELLED
+        self.is_free = self.available
         db.session.add(self.appointment)
 
+    def open(self, reason=None):
+        """Block this slot without creating an appointment."""
+        # if self.is_free:
+        #     raise ValueError("slot already free.")
+        self.available = True
+        self.is_free = True
+        self.block_reason = reason or "Unavailable"
+        db.session.add(self)
+        return self
     def block(self, reason=None):
         """Block this slot without creating an appointment."""
         if self.appointment is not None:
             raise ValueError("Cannot block: slot already booked.")
         self.available = False
+        self.is_free = False
         self.block_reason = reason or "Unavailable"
         db.session.add(self)
         return self

@@ -3,7 +3,7 @@ from faker import Faker
 import random
 from datetime import date, timedelta
 
-from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User
+from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User,Sessions
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database.sqlite3"
@@ -83,7 +83,7 @@ def seed_database():
     # -----------------
     # Slot: 90 days × 2 sessions = 180 slots per doctor
     # -----------------
-    sessions = ["08:00 - 12:00 am", "04:00 - 09:00 pm"]
+    sessions = [s.value for s in Sessions]
     start_date = date.today()
     slots_by_doctor = {}
     for doc in doctors:
@@ -101,7 +101,7 @@ def seed_database():
     # For each doctor: 10 booked appts + 5 completed with treatments
     # -----------------
     for doc in doctors:
-        free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.appointment is None]
+        free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.is_free ]
         random.shuffle(free_slots)
 
         # 10 booked
@@ -113,11 +113,12 @@ def seed_database():
                 db.session.commit()
             except Exception as e:
                 db.session.rollback()
+
                 
 
 
         # refresh free slots
-        free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.appointment is None]
+        free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.is_free]
         random.shuffle(free_slots)
 
         # 5 completed
@@ -137,6 +138,7 @@ def seed_database():
                 "medicines": fake.sentence(nb_words=4),
             })
             db.session.commit()
+
 
     print("✅ Appointments & treatments created")
     print("🎉 Database seeding finished.")

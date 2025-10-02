@@ -38,6 +38,18 @@ def admin_dashboard():
             "ID": d.id,
             "Name": d.name +" "+d.last_name,
             "Department": d.department.name if d.department else "—",
+            "Open": db.session.query(Appointment).filter(
+                        Appointment.doctor_id == d.id,
+                        Appointment.status == AppointmentStatus.BOOKED
+                    ).count(),
+            "Closed":db.session.query(Appointment).filter(
+                        Appointment.doctor_id == d.id,
+                        Appointment.status == AppointmentStatus.COMPLETED
+                    ).count(),
+            "Available":db.session.query(Slot).filter(
+                        Slot.doctor_id == d.id,
+                        Slot.is_free == True
+                    ).count(),
             "Status": d.status,
             "Actions": [
                 {"label": "Edit", "url": url_for("doctor.edit_doctor", doctor_id=d.id), "color": "warning"},
@@ -90,11 +102,19 @@ def admin_dashboard():
     tabs = [
         {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
          "total_appointments":total_appointments,"active_appointments":active_appointments,"closed_appointments":closed_appointments}},
-        {"label": "Doctors", "columns": ["ID", "Name", "Department", "Status", "Actions"], "rows": doctor_rows},
+        {"label": "Doctors", "columns": ["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"], "rows": doctor_rows},
         {"label": "Patients", "columns": ["ID", "Name", "Phone","Email","Status","Actions"], "rows": patient_rows},
         {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
         {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
-        {"label": "Availablilty", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
+                                                          "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
+                                                          "Admin can add/update doctor and patient profiles.",
+                                                          "Admin can view all upcoming and past appointments.",
+                                                          "Admin can search for patients or doctors and view their details.",
+                                                          "Admin can edit doctor details such as name, specialization etc., and also patient info if needed.",
+                                                          "Admin can remove/blacklist doctors and patients from the system."],
+                                                            "extra":["OK"]},
 
     ]
 
@@ -250,7 +270,7 @@ def add_doctor():
         experience = request.form.get("experience")
         dept_id = request.form.get("department_id")
         password = request.form.get("password")
-        print(name,dept_id)
+
         if not name or not dept_id or not email:
             flash("name and specialization are required.", "danger")
             return redirect(home_url)

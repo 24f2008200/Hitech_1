@@ -4,163 +4,234 @@
 {% block styles %}
 
 <style>
-    .calendar-grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 6px;
-    }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
 
-    .day-header {
-        text-align: center;
-        font-weight: bold;
-        padding: 4px;
-        border-bottom: 1px solid #ddd;
-    }
+  .day-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 4px;
+    border-bottom: 1px solid #ddd;
+  }
 
-    .day-box {
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        padding: 4px;
-        min-height: 70px;
-        text-align: center;
-        background: #f9f9f9;
-        font-size: 12px;
-    }
+  .day-box {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px;
+    min-height: 70px;
+    text-align: center;
+    background: #f9f9f9;
+    font-size: 12px;
+  }
 
-    /* .date-label {
-        font-weight: bold;
-        margin-bottom: 2px;
-    } */
+  .slot-options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
 
-    .slot-options {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-    }
+  .slot-options .form-check {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
 
-    .slot-options .form-check {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-    }
+  .empty {
+    visibility: hidden;
+  }
 
-    .empty {
-        visibility: hidden;
-    }
+  .day-box-inline {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 4px 6px;
+    background: #f9f9f9;
+    font-size: 13px;
+    min-width: 100px;
+  }
 
-    .day-box-inline {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 6px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 4px 6px;
-        background: #f9f9f9;
-        font-size: 13px;
-        min-width: 100px;
-    }
+  .day-box-inline .date-label {
+    font-weight: bold;
+    width: 22px;
+    text-align: right;
+  }
 
-    .day-box-inline .date-label {
-        font-weight: bold;
-        width: 22px;
-        /* fixed width for alignment */
-        text-align: right;
-    }
+  .slot-inline {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 12px;
+  }
 
-    .slot-inline {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        font-size: 12px;
-    }
+  .slot-options {
+    display: grid;
+    gap: 4px;
+    /* Automatically adjust columns based on number of sessions */
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    justify-items: start;
+    /* align checkboxes to the left */
+  }
+
+  /* Each checkbox label */
+  .slot-options label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  /* Active / available */
+  .slot-busy {
+    background-color: #d4edda;
+    /* green-ish */
+    color: #155724;
+  }
+
+  /* Inactive / busy */
+  .slot-available{
+    background-color: #f8d7da;
+    /* red-ish */
+    color: #721c24;
+  }
+
+  /* Optionally, disable the checkbox if busy */
+  .slot-busy input {
+    pointer-events: none;
+  }
+
+  /* Day box styling */
+  .day-box {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px;
+    min-height: 90px;
+    /* increased to accommodate more sessions */
+    text-align: center;
+    background: #f9f9f9;
+    font-size: 12px;
+  }
 </style>
 {% endblock %}
 {% block content %}
 
-<div>{% for month_start, weeks, slot_map in months %}
-<div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="month-{{ loop.index }}">
-  <div class="form-check mb-2">
-    <input class="form-check-input select-all" type="checkbox" id="selectAll-{{ loop.index }}">
-    <label class="form-check-label" for="selectAll-{{ loop.index }}">
-      Select all slots in {{ month_start.strftime('%B %Y') }}
-    </label>
-  </div>
-  <table class="table table-bordered text-center align-middle">
-    <thead class="table-light">
-      <tr>
-        <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th>
-        <th>Fri</th><th>Sat</th><th>Sun</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for week in weeks %}
-      <tr>
-        {% for d in week %}
-        <td>
-          {% if d.month == month_start.month %}
-            <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
+<div>
+  <!-- Tabs -->
+  <ul class="nav nav-tabs" id="monthTabs" role="tablist">
+    {% for month_start, month_end, avail_map in months %}
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if loop.first %}active{% endif %}" id="tab-{{ loop.index }}" data-bs-toggle="tab"
+        data-bs-target="#month-{{ loop.index }}" type="button" role="tab">
+        {{ month_start.strftime('%B %Y') }}
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+  <!-- Tab Content -->
+  <div class="tab-content mt-3">
+    {% for month_start, weeks, slot_map in months %}
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="month-{{ loop.index }}">
+      <div class="form-check mb-2">
+        <input class="form-check-input select-all" type="checkbox" id="selectAll-{{ loop.index }}">
+        <label class="form-check-label" for="selectAll-{{ loop.index }}">
+          Select all slots in {{ month_start.strftime('%B %Y') }}
+        </label>
+      </div>
 
-            {% for session,label in [("morning","08:00-12:00"),("evening","16:00-21:00")] %}
-              {% set spot = slot_map.get((d, session)) %}
-              <label class="d-block small">
-                <input type="checkbox" class="slot-checkbox"
-                       data-date="{{ d.isoformat() }}"
-                       data-session="{{ session }}"
-                       {% if spot %}checked{% endif %}>
-                {{ label }}
-              </label>
+      <table class="table table-bordered text-center align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mon</th>
+            <th>Tue</th>
+            <th>Wed</th>
+            <th>Thu</th>
+            <th>Fri</th>
+            <th>Sat</th>
+            <th>Sun</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for week in weeks %}
+          <tr>
+            {% for d in week %}
+            <td>
+              {% if d.month == month_start.month %}
+              <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
+
+              <div class="slot-options">
+                {% for s in Sessions %}
+                {% set spot = slot_map.get((d, s.value)) %}
+                {% set busy =  not spot.is_free %}
+                <label class="{% if busy %}slot-available{% else %}slot-busy{% endif %}">
+                  <input type="checkbox" class="slot-checkbox" data-date="{{ d.isoformat() }}"
+                    data-session="{{ s.value }}" {% if busy %}disabled{% elif spot.available %} checked {% endif %}>
+                  {{ s.value }}-{{spot.is_free}}-{{spot.available }}
+                </label>
+                {% endfor %}
+              </div>
+
+              {% else %}
+              <div class="text-muted">–</div>
+              {% endif %}
+            </td>
             {% endfor %}
-          {% else %}
-            <div class="text-muted">–</div>
-          {% endif %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
 </div>
-{% endfor %}
+<div class="mb-3">
+  <button class="btn btn-primary me-2" id="saveBtn">Save</button>
+  <button class="btn btn-secondary" id="exitBtn">Exit</button>
 </div>
 
 {% endblock %}
 {% block scripts %}
 
 <script>
-document.addEventListener("DOMContentLoaded", function () {
-  // Select all
-  document.querySelectorAll(".select-all").forEach(chk => {
-    chk.addEventListener("change", function () {
-      const tabId = this.id.replace("selectAll-", "");
-      const tabPane = document.querySelector("#month-" + tabId);
-      tabPane.querySelectorAll(".slot-checkbox").forEach(cb => cb.checked = this.checked);
-    });
-  });
-
-  // Save button
-  document.getElementById("saveBtn").addEventListener("click", () => {
-    const updates = [];
-    document.querySelectorAll(".slot-checkbox").forEach(cb => {
-      updates.push({
-        date: cb.dataset.date,
-        session: cb.dataset.session,
-        available: cb.checked
+  document.addEventListener("DOMContentLoaded", function () {
+    // Select all
+    document.querySelectorAll(".select-all").forEach(chk => {
+      chk.addEventListener("change", function () {
+        const tabId = this.id.replace("selectAll-", "");
+        const tabPane = document.querySelector("#month-" + tabId);
+        tabPane.querySelectorAll(".slot-checkbox").forEach(cb => cb.checked = this.checked);
       });
     });
 
-    fetch("/doctor/save_spots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ doctor_id: "{{ doctor.id }}", slots: updates }),
-      credentials: "include"
-    }).then(r => r.json()).then(data => {
-      alert(data.message);
-      window.location.href = "/doctor/dashboard";
+    // Save button
+    document.getElementById("saveBtn").addEventListener("click", () => {
+      const updates = [];
+      document.querySelectorAll(".slot-checkbox").forEach(cb => {
+        updates.push({
+          date: cb.dataset.date,
+          session: cb.dataset.session,
+          available: cb.checked
+        });
+      });
+
+      fetch("/doctor/edit_availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ doctor_id: "{{ doctor.id }}", slots: updates }),
+        credentials: "include"
+      }).then(r => r.json()).then(data => {
+        alert(data.message);
+        window.location.href = "/doctor/dashboard";
+      });
     });
   });
-});
 </script>
 
 {% endblock %}

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, abort, url_for
 from flask_login import current_user
-from models import Doctor
+from models import *
 from package.routes.auth import *
 from package.routes.utils import *
 
@@ -137,6 +137,13 @@ def patient_dashboard():
         {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Time", "Status","Actions"], "rows": appt_rows},
         {"label": "My Treatments", "columns": ["ID", "Date", "Doctor", "Prescription"],"rows": treat_rows},
         {"label": "Departments", "columns":["Departments", "Action"],"rows": department_rows},
+                {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Patients can register and login themselves on the app.",
+                                                          "Patients’ Dashboard must display all available specialization/departments",
+                                                          "Patients’ Dashboard must display availability of doctors for the coming 7 days (1 week) and patients can read doctors profiles.",
+                                                          "It must display upcoming appointments and their status.","It must show past appointment history with diagnosis and prescriptions.",
+                                                          "Patients can edit their profile.","Patients can book as well as cancel appointments with doctors.",],
+                                                            "extra":["OK"]},
     ]
 
     return render_template("dashboard_base.html", title="Patient Dashboard", tabs=tabs)
@@ -174,6 +181,7 @@ def appointments_book(doctor_id):
 
 
     try:
+        print(patient_id,spot.doctor_id,spot.id)
         appt =spot.book(patient_id)
         db.session.commit()
         flash("Appointment booked successfully!", "success")

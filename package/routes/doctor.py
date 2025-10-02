@@ -2,7 +2,7 @@
 import calendar
 from flask import Blueprint, render_template, request, abort, url_for
 from flask_login import current_user , LoginManager
-from models import Doctor
+from models import *
 from package.routes.auth import *
 from package.routes.utils import *
 
@@ -153,13 +153,19 @@ def doctor_dashboard():
         {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Time", "Status", "Reason", "Actions"], "rows": appointments_rows},
         {"label": "My Patients", "columns": ["ID", "Patient", "Status","Actions"], "rows": patient_rows},
         {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
+                {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
+                                                          "Doctor's dashboard must have the option to mark appointments as Completed or Cancelled.",
+                                                          "Doctors can provide their availability for the next 7 days.",
+                                                          "Doctors can update patient treatment history like provide diagnosis, treatment and prescriptions.",],
+                                                            "extra":["OK"]},
     ]
 
     return render_template("dashboard_base.html", title="", tabs=tabs)
 
 
 
-@doctor_bp.route("/availability")
+@doctor_bp.route("/availability") # by doc
 @doctor_required
 def availability():
     # doctor_id = current_user.id
@@ -200,15 +206,17 @@ def availability():
         availabilities = Slot.query.filter(
             Slot.doctor_id == doctor_id,
             Slot.date >= month_start,
-            Slot.date <= month_end,
-            Slot.available == True
+            Slot.date <= month_end
         ).all()
 
-        avail_map = {(a.date, a.session): a for a in availabilities}
+        free_slots = [s for s in availabilities]
+        
+
+        avail_map = {(a.date, a.session): a for a in free_slots}
         months.append((month_start, weeks, avail_map))
   
 
-    return render_template("availability.html", doctor=doctor, months=months)
+    return render_template("availability.html", doctor=doctor, months=months,Sessions=Sessions)
 
 @doctor_bp.route("/update_history", methods=["POST"])
 @login_required
@@ -241,41 +249,51 @@ def update_history():
     return redirect(url_for("doctor.doctor_dashboard"))
 
 
-@doctor_bp.route("/save_availability", methods=["POST"])
+@doctor_bp.route("/edit_availability", methods=["POST"])
 @login_required
-def save_availability():
+def edit_availability():
     if current_user.type != "doctor":
         return "Forbidden", 403
 
     data = request.get_json()
     doctor_id = current_user.id
+    edit_url = url_for("doctor.edit_availability")
+    home_url =get_home_url()
     slots = data.get("slots", [])  # e.g., ["2025-01-21-morning-1", "2025-01-22-evening-0"]
-    # print(slots)
+
     for slot in slots:
         date_str = slot["date"]
         session = slot["session"]
         flag = slot["available"]
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
         is_avail = flag == True
-
-        # Upsert availability
         record = Slot.query.filter_by(doctor_id=doctor_id, date=date_obj, session=session).first()
         if record:
-            record.available = is_avail
-        else:
-            db.session.add(Slot(
-                doctor_id=doctor_id,
-                date=date_obj,
-                session=session,
-                available=is_avail
-            ))
+            if record.available != is_avail:
+                print ("Old    ",date_str, record.available ,is_avail)
+            if is_avail :
+                record.open()
+            else:
+                if record.is_free:
+                    record.block()
+                else:
+                    print ("can not block    ",date_str, record.available ,is_avail)
+        # else:
+        #     flash(f"Error updating Slot: {date_str +" " + session}  ", "danger")
+        #     return redirect(edit_url)
+    try:
+        db.session.commit()
+        flash("✅ Department added successfully!", "success")
+        return redirect(home_url)
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating Department: {e}", "danger")
+        return redirect(edit_url)
+
+    # return jsonify({"status": "success", "message": "Slot saved successfully"})
 
 
-    db.session.commit()
-    return jsonify({"status": "success", "message": "Slot saved successfully"})
-
-
-@doctor_bp.route("/availability/<int:doctor_id>")
+@doctor_bp.route("/availability/<int:doctor_id>") # by patient
 @login_required
 def doctor_availability(doctor_id):
     doctor = Doctor.query.get_or_404(doctor_id)
@@ -295,15 +313,16 @@ def doctor_availability(doctor_id):
         availabilities = Slot.query.filter(
             Slot.doctor_id == doctor_id,
             Slot.date >= month_start,
-            Slot.date <= month_end,
-            Slot.available == True
+            Slot.date <= month_end
         ).all()
 
-        avail_map = {(a.date, a.session): a for a in availabilities}
+        free_slots = [s for s in availabilities if s.is_free]
+
+        avail_map = {(a.date, a.session): a for a in free_slots}
         months.append((month_start, weeks, avail_map))
   
 
-    return render_template("booking.html", doctor=doctor, months=months)
+    return render_template("booking.html", doctor=doctor, months=months,Sessions=Sessions)
 
 @doctor_bp.route("/doctor_details/<int:doctor_id>")
 @login_required

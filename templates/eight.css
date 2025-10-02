@@ -1,0 +1,29 @@
+/* Container for session checkboxes inside a day */
+.slot-options {
+    display: grid;
+    gap: 4px;
+    /* Automatically adjust columns based on number of sessions */
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    justify-items: start;  /* align checkboxes to the left */
+}
+
+/* Each checkbox label */
+.slot-options label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+/* Day box styling */
+.day-box {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 4px;
+    min-height: 90px;  /* increased to accommodate more sessions */
+    text-align: center;
+    background: #f9f9f9;
+    font-size: 12px;
+}
+
+
