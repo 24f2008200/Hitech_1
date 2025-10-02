@@ -1,0 +1,36 @@
+launch.jsonify{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug P1",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/init_db.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug P2",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug P3",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/init_db1.py",
+      "console": "integratedTerminal"
+    }
+  ]
+}
+
+
+settings.jsonify
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true,
+  "terminal.integrated.enablePersistentSessions": false
+}
+
+both in .vscode/

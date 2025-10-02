@@ -23,8 +23,8 @@ Others/
 Mad1_P/
 
 # Ignore VS Code settings
-.vscode/
-.venv/
+#.vscode/
+#.venv/
 
 #*.txt
 get_pip.py
