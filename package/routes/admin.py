@@ -100,6 +100,7 @@ def admin_dashboard():
     ).count()
 
     tabs = [
+        {"label": "Develope", "page" : "dummy2.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
          "total_appointments":total_appointments,"active_appointments":active_appointments,"closed_appointments":closed_appointments}},
         {"label": "Doctors", "columns": ["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"], "rows": doctor_rows},
@@ -113,7 +114,15 @@ def admin_dashboard():
                                                           "Admin can view all upcoming and past appointments.",
                                                           "Admin can search for patients or doctors and view their details.",
                                                           "Admin can edit doctor details such as name, specialization etc., and also patient info if needed.",
-                                                          "Admin can remove/blacklist doctors and patients from the system."],
+                                                          "Admin can remove/blacklist doctors and patients from the system.",
+                                                          "API resources are created to interact with the users, appointments etc. (Please note: you can choose which API resources to make from the given ones, It is NOT mandatory to create API resources for CRUD of all the components)",
+                                                          "APIs can either be created by returning JSON from a controller (with at least 4 http methods) or using a flask extension like flask_restful",
+                                                          "External APIs/libraries for creating charts, e.g. Chart JS",
+                                                          "Implementing frontend validation on all the form fields using HTML5 form validation or JavaScript",
+                                                          "Implement backend validation within your app's controllers.",
+                                                          "Provide styling and aesthetics to your application by creating a beautiful and responsive front end using simple CSS or Bootstrap (No other styling library is allowed.)",
+                                                          "Incorporate a proper login system to prevent unauthorized access to the app using Flask extensions like flask_login, flask_security etc.",
+                                                          "Any additional feature you feel is appropriate for the application",],
                                                             "extra":["OK"]},
 
     ]

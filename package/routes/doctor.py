@@ -269,18 +269,9 @@ def edit_availability():
         is_avail = flag == True
         record = Slot.query.filter_by(doctor_id=doctor_id, date=date_obj, session=session).first()
         if record:
-            if record.available != is_avail:
-                print ("Old    ",date_str, record.available ,is_avail)
-            if is_avail :
-                record.open()
-            else:
-                if record.is_free:
-                    record.block()
-                else:
-                    print ("can not block    ",date_str, record.available ,is_avail)
-        # else:
-        #     flash(f"Error updating Slot: {date_str +" " + session}  ", "danger")
-        #     return redirect(edit_url)
+            if record.is_free and record.available != is_avail:
+                record.available = is_avail
+                db.session.flush()
     try:
         db.session.commit()
         flash("✅ Department added successfully!", "success")
@@ -316,7 +307,7 @@ def doctor_availability(doctor_id):
             Slot.date <= month_end
         ).all()
 
-        free_slots = [s for s in availabilities if s.is_free]
+        free_slots = [s for s in availabilities if s.available and s.is_free]
 
         avail_map = {(a.date, a.session): a for a in free_slots}
         months.append((month_start, weeks, avail_map))

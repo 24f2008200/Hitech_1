@@ -1,0 +1,13 @@
+Git Sync Cheat Sheet (2 Machines + GitHub)
+✅ Before you start working:
+git pull --rebase origin main   # get latest code from GitHub
+
+✅ While working:
+git add .                       # stage all changes
+git commit -m "your message"    # save locally
+
+✅ When finished (end of work):
+git push origin main            # upload to GitHub
+
+✅ Switching to the other machine:
+git pull --rebase origin main   # update before editing

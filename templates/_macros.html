@@ -64,12 +64,12 @@
        id="content-{{ loop.index }}"> -->
     <!-- <div class="tab-pane fade {% if tab.title|lower == active_tab %}show active{% endif %}"
       id="content-{{ loop.index }}"> -->
-<!-- return render_template("dashboard.html", tabs=tabs, active_tab="appointments") -->
- <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
+    <!-- return render_template("dashboard.html", tabs=tabs, active_tab="appointments") -->
+    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
       {% if tab.columns is defined and tab.columns %}
       {{ render_table(tab.columns, tab.rows) }}
       {% elif tab.page is defined %}
-      {% include tab.page  %}
+      {% include tab.page %}
       {% else %}
       <p>No content available</p>
       {% endif %}
