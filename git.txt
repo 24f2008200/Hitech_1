@@ -21,6 +21,8 @@ git push -u origin master
 
 git branch   ==== to find branch name ?
 
+git diff HEAD~1 HEAD
+
 
 See commit history
 git log --oneline

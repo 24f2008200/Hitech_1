@@ -10,3 +10,69 @@
 {% block scripts %}
 
 {% endblock %} 
+
+
+
+<style>
+  .slot-radio {
+    display: none; /* hide default circle */
+  }
+
+  .slot-label {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    margin: 2px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    line-height: 30px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  /* When selected */
+  .slot-radio:checked + .slot-label {
+    background-color: #28a745;
+    color: white;
+  }
+
+  /* Busy (unavailable) slots */
+  .slot-label.busy {
+    background-color: #ccc;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+</style>
+
+
+<td style="min-width:120px;">
+  {% if d.month == month_start.month %}
+    <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
+
+    <div class="slot-row">
+      {% for s in Sessions %}
+        {% set spot = avail_map.get((d, s.value)) %}
+        {% set busy = spot and not spot.is_free %}
+
+        <input type="radio"
+               id="slot_{{ d.isoformat() }}_{{ s.value }}"
+               name="selected_slot"              <!-- 🔑 same name for ALL slots in page -->
+               class="slot-radio"
+               value="{{ d.isoformat() }}_{{ s.value }}"
+               {% if busy %}disabled{% endif %}
+               {% if spot and spot.available %}checked{% endif %}>
+
+        <label for="slot_{{ d.isoformat() }}_{{ s.value }}"
+               class="slot-label {% if busy %}busy{% endif %}">
+          {{ s.value }}
+        </label>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="text-muted">–</div>
+  {% endif %}
+</td>

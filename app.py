@@ -30,12 +30,15 @@ db.init_app(app)
 # jwt = JWTManager(app)
 # csrf = CSRFProtect(app)
 
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"  
+
 app.register_blueprint(doctor_bp)
 app.register_blueprint(patient_bp)
 app.register_blueprint(admin_bp)
 
-login_manager = LoginManager(app)
-login_manager.login_view = "login"  
+
 
 
 @app.route("/favicon.ico")

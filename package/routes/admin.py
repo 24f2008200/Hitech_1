@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, abort
+from flask import Blueprint, render_template, request, abort,Flask, render_template, redirect, url_for, request ,send_from_directory, flash
 from flask_login import current_user ,LoginManager
-from models import *
-from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
+from sqlalchemy import or_
+
 from package.routes.auth import *
 from package.routes.utils import *
+from models import *
 
 
 login_manager = LoginManager()  
@@ -73,6 +74,24 @@ def admin_dashboard():
 
         } 
         for p in patients]
+    
+    patient_columns =[ {"key": "ID", "label": "ID"},
+        {"key": "Name", "label": "Full Name"},
+        {"key": "Phone", "label": "Phone", },
+        {"key": "Email", "label": "Email", },
+        {"key": "Status", "label": "Status", "filterType": "select"},
+        {"key": "Actions", "label": "Actions", "type": "action"}
+                ]
+    appointments_cols = [
+        {"key": "ID", "label": "ID"},
+        {"key": "Doctor", "label": "Doctor"},
+        {"key": "Patient", "label": "Patient"},
+        {"key": "Date", "label": "Date"},
+        {"key": "Session", "label": "Session"},
+        {"key": "Department", "label": "Department"},
+        {"key": "Status", "label": "Status", "filterType": "select"},
+        {"key": "Actions", "label": "Actions", "type": "action"}
+    ]
 
     departments = Department.query.all()
     department_rows = [{
@@ -100,37 +119,170 @@ def admin_dashboard():
     ).count()
 
     tabs = [
-        {"label": "Develope", "page" : "dummy2.html" ,"rows":["One","two"], "extra":["OK"]},
+         {"label": "Develope", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
-         "total_appointments":total_appointments,"active_appointments":active_appointments,"closed_appointments":closed_appointments}},
+                "total_appointments":total_appointments,"active_appointments":active_appointments,
+                "closed_appointments":closed_appointments}},
         {"label": "Doctors", "columns": ["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"], "rows": doctor_rows},
-        {"label": "Patients", "columns": ["ID", "Name", "Phone","Email","Status","Actions"], "rows": patient_rows},
+        {"label": "Patients", "filterTable": "patients", "columns": patient_columns, "rows": patient_rows},
         {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
-        {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
-        {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
+        {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
-                                                          "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
-                                                          "Admin can add/update doctor and patient profiles.",
-                                                          "Admin can view all upcoming and past appointments.",
-                                                          "Admin can search for patients or doctors and view their details.",
-                                                          "Admin can edit doctor details such as name, specialization etc., and also patient info if needed.",
-                                                          "Admin can remove/blacklist doctors and patients from the system.",
-                                                          "API resources are created to interact with the users, appointments etc. (Please note: you can choose which API resources to make from the given ones, It is NOT mandatory to create API resources for CRUD of all the components)",
-                                                          "APIs can either be created by returning JSON from a controller (with at least 4 http methods) or using a flask extension like flask_restful",
-                                                          "External APIs/libraries for creating charts, e.g. Chart JS",
-                                                          "Implementing frontend validation on all the form fields using HTML5 form validation or JavaScript",
-                                                          "Implement backend validation within your app's controllers.",
-                                                          "Provide styling and aesthetics to your application by creating a beautiful and responsive front end using simple CSS or Bootstrap (No other styling library is allowed.)",
-                                                          "Incorporate a proper login system to prevent unauthorized access to the app using Flask extensions like flask_login, flask_security etc.",
-                                                          "Any additional feature you feel is appropriate for the application",],
-                                                            "extra":["OK"]},
+                "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
+                "Admin can add/update doctor and patient profiles.",
+                "Admin can view all upcoming and past appointments.",
+                "Admin can search for patients or doctors and view their details.",
+                "Admin can edit doctor details such as name, specialization etc., and also patient info if needed.",
+                "Admin can remove/blacklist doctors and patients from the system.",
+                "API resources are created to interact with the users, appointments etc. (Please note: you can choose which API resources to make from the given ones, It is NOT mandatory to create API resources for CRUD of all the components)",
+                "APIs can either be created by returning JSON from a controller (with at least 4 http methods) or using a flask extension like flask_restful",
+                "External APIs/libraries for creating charts, e.g. Chart JS",
+                "Implementing frontend validation on all the form fields using HTML5 form validation or JavaScript",
+                "Implement backend validation within your app's controllers.",
+                "Provide styling and aesthetics to your application by creating a beautiful and responsive front end using simple CSS or Bootstrap (No other styling library is allowed.)",
+                "Incorporate a proper login system to prevent unauthorized access to the app using Flask extensions like flask_login, flask_security etc.",
+                "Any additional feature you feel is appropriate for the application"],
+                "extra":["OK"]},
 
     ]
 
     return render_template("dashboard_base.html", title=None, tabs=tabs,active_index=2)
     # return render_template("dashboard_base.html", title=None, tabs=tabs,active_tab="availablilty")
 
+@admin_bp.route("/query", methods=["GET", "POST"])
+@admin_required
+def search():
+    wheretosearch = request.form["fromWhere"]
+    feature = request.form["field"]
+    value = request.form["q"]
+    value_like = f"%{value}%"
+    results = []
 
+    if wheretosearch == "patients":
+        query = None
+        if feature == "name":
+            query = Patient.query.filter(or_(
+                Patient.name.like(value_like),
+                Patient.last_name.like(value_like)  # if you have last_name
+            ))
+        elif feature == "phone":
+            query = Patient.query.filter(Patient.phone.like(value_like))
+        elif feature == "email":
+            query = Patient.query.filter(Patient.email.like(value_like))
+        elif feature == "id":
+            query = Patient.query.filter(Patient.id.like(value_like))
+        elif feature == "address":
+            query = Patient.query.filter(Patient.address.like(value_like))
+
+        if query:
+            for p in query.all():
+                results.append({
+                    "type": "patient",
+                    "id": p.id,
+                    "P_name": f"{p.name} {getattr(p, 'last_name', '')}".strip(),
+                    "D_name":"",
+                    "phone": getattr(p, "phone", None),
+                    "email": getattr(p, "email", None),
+                    "address": getattr(p, "address", None),
+                    "slot":"",
+                    "date":""
+                    
+                })
+
+    elif wheretosearch == "doctors":
+        query = None
+        if feature == "name":
+            query = Doctor.query.filter(or_(
+                Doctor.name.like(value_like),
+                Doctor.last_name.like(value_like)
+            ))
+        elif feature == "phone":
+            query = Doctor.query.filter(Doctor.phone.like(value_like))
+        elif feature == "email":
+            query = Doctor.query.filter(Doctor.email.like(value_like))
+        elif feature == "id":
+            query = Doctor.query.filter(Doctor.id.like(value_like))
+        elif feature == "address":
+            query = Doctor.query.filter(Doctor.address.like(value_like))
+
+        if query:
+            for d in query.all():
+                results.append({
+                    "type": "doctor",
+                    "id": d.id,
+                    "P_name": "",
+                    "D_name": f"{d.name} {getattr(d, 'last_name', '')}".strip(),
+                    "phone": getattr(d, "phone", None),
+                    "email": getattr(d, "email", None),
+                    "address": getattr(d, "address", None),
+                    "slot":"",
+                    "date":""
+                })
+
+    elif wheretosearch == "appointments":
+        query = (Appointment.query
+         .join(Patient, Appointment.patient_id == Patient.id)
+         .join(Doctor, Appointment.doctor_id == Doctor.id))
+
+        if feature == "name":
+            query = query.filter(or_(
+                Patient.name.like(value_like),
+                Doctor.name.like(value_like)
+            ))
+        elif feature == "phone":
+            query = query.filter(or_(
+                Patient.phone.like(value_like),
+                Doctor.phone.like(value_like)
+            ))
+        elif feature == "email":
+            query = query.filter(or_(
+                Patient.email.like(value_like),
+                Doctor.email.like(value_like)
+            ))
+        elif feature == "id":
+            query = query.filter(or_(
+                Patient.id.like(value_like),
+                Doctor.id.like(value_like),
+                Appointment.id.like(value_like)
+            ))
+        elif feature == "address":
+            query = query.filter(or_(
+                Patient.address.like(value_like),
+                Doctor.address.like(value_like)
+            ))
+
+        for a in query.all():
+            results.append({
+                "type": "appointment",
+                "id": a.id,
+                "P_name": f"{a.patient.name} {getattr(a.patient, 'last_name', '')}".strip(),
+                "D_name": f"{a.doctor.name} {getattr(a.doctor, 'last_name', '')}".strip(),
+                "slot": getattr(a, "slot_id", None),
+                "date": getattr(a, "date", None),
+                "phone": getattr(a.patient, "phone", None) or getattr(a.doctor, "phone", None),
+                "email": getattr(a.patient, "email", None) or getattr(a.doctor, "email", None),
+                "address": getattr(a.patient, "address", None) or getattr(a.doctor, "address", None),   
+            })
+    searchResults_columns = [
+        {"key": "id", "label": "ID"},
+        {"key": "D_name", "label": "Doctor"},
+        {"key": "P_name", "label": "Patient"},
+            {"key": "phone", "label": "Phone"},
+        {"key": "email", "label": "Email"},
+        {"key": "address", "label": "Address"},
+        {"key": "date", "label": "Date"},
+        {"key": "slot", "label": "Session"},
+
+        
+    ]
+    print(results)
+    return render_template("search.html", title="Search Results", 
+                           searchResults_columns=searchResults_columns, 
+                           searchResults_rows=results)
+
+
+    return fromWhere + " " + field + " " + query
 
 @admin_bp.route("/add_department", methods=["GET", "POST"])
 @admin_required

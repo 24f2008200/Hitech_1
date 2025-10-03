@@ -3,7 +3,12 @@ from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
-from sqlalchemy import Enum
+from sqlalchemy import Enum,select, func ,inspect, text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
+
+
 
 db = SQLAlchemy()
 # --------------------------
@@ -14,9 +19,16 @@ class AppointmentStatus(enum.Enum):
     COMPLETED = "completed"
     CANCELLED = "cancelled"
 class Sessions(enum.Enum):
-    S1 = "08:00 - 12:00 am"
-    S2 = "04:00 - 09:00 pm"
-    
+    S1 = "8A"
+    S2 = "9A"
+    S3 = "10A"
+    S4 = "11A"
+    S5 = "5P"
+    S6 = "6P"
+    S7 = "7P"
+    S8 = "8P"
+
+
 
 class myModel:
     def to_dict(self, include_relationships=False, seen=None):
@@ -312,3 +324,43 @@ class Treatment(db.Model,myModel):
     medicines = db.Column(db.Text)
     appointment = db.relationship("Appointment", back_populates="treatment")
 
+
+def search_all(search_term):
+    """
+    Search across all tables and text-convertible columns in the SQLAlchemy db.
+    Returns a list of dicts with table, column, row_id, and matched_value.
+    """
+
+    results = []
+    inspector = inspect(db.engine)
+
+    # Get all table names
+    tables = inspector.get_table_names()
+
+    with db.engine.connect() as conn:
+        for table in tables:            # Get all column names
+            columns = [col["name"] for col in inspector.get_columns(table)]
+
+            for col in columns:
+                try:
+                    query = text(f"""
+                        SELECT rowid as id, {col} as value
+                        FROM {table}
+                        WHERE CAST({col} AS TEXT) LIKE :term
+                    """)
+
+                    rows = conn.execute(query, {"term": f"%{search_term}%"}).fetchall()
+
+                    for row in rows:
+                        results.append({
+                            "table": table,
+                            "column": col,
+                            "row_id": row.id,
+                            "matched_value": row.value
+                        })
+                except SQLAlchemyError:
+                    print("Error")
+                    # Skip columns that can't be searched
+                    continue
+
+    return results

@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <body>
+{% import "_macros.html" as ui %}
+
+{% block content %}
+
+{{ui.render_filter_table(searchResults_columns,
+     searchResults_rows, "search_results") }}
+
+{% endblock %}
+</body>
+</html>

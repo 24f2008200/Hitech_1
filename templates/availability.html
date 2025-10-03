@@ -21,27 +21,11 @@
     border: 1px solid #ccc;
     border-radius: 6px;
     padding: 4px;
-    min-height: 70px;
+    min-height: 90px;
+    /* increased to accommodate more sessions */
     text-align: center;
     background: #f9f9f9;
     font-size: 12px;
-  }
-
-  .slot-options {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .slot-options .form-check {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .empty {
-    visibility: hidden;
   }
 
   .day-box-inline {
@@ -61,6 +45,25 @@
     font-weight: bold;
     width: 22px;
     text-align: right;
+  }
+
+
+  .slot-options {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .slot-options .form-check {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+
+  .empty {
+    visibility: hidden;
   }
 
   .slot-inline {
@@ -97,7 +100,7 @@
   }
 
   /* Inactive / busy */
-  .slot-available{
+  .slot-available {
     background-color: #f8d7da;
     /* red-ish */
     color: #721c24;
@@ -108,17 +111,148 @@
     pointer-events: none;
   }
 
-  /* Day box styling */
-  .day-box {
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    padding: 4px;
-    min-height: 90px;
-    /* increased to accommodate more sessions */
+  table.calendar {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
     text-align: center;
-    background: #f9f9f9;
-    font-size: 12px;
   }
+
+  table.calendar th,
+  table.calendar td {
+    border: 1px solid #dee2e6;
+    vertical-align: top;
+    padding: 8px;
+  }
+
+  table.calendar th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+  }
+
+  .slot-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .slot-label {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 3px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .slot-label input {
+    display: none;
+    /* hide raw checkbox */
+  }
+
+  .slot-label.available {
+    background-color: #e3fcef;
+    /* light green */
+    border: 1px solid #28a745;
+    /* green */
+    color: #155724;
+  }
+
+  .slot-label.available:hover {
+    background-color: #c6f6d5;
+  }
+
+  .slot-label.available input:checked+span {
+    font-weight: bold;
+  }
+
+  .slot-label.busy {
+    background-color: #f8d7da;
+    /* light red */
+    border: 1px solid #dc3545;
+    /* red */
+    color: #721c24;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+
+  .slot-options {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    /* 4 columns */
+    grid-gap: 6px;
+    margin-top: 5px;
+  }
+
+  .slot-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+
+  .slot-label input {
+    margin-right: 5px;
+    /* show checkbox */
+  }
+
+  .slot-available {
+    background-color: #e3fcef;
+    /* light green */
+    border: 1px solid #28a745;
+    color: #155724;
+  }
+
+  .slot-busy {
+    background-color: #f8d7da;
+    /* light red */
+    border: 1px solid #dc3545;
+    color: #721c24;
+    opacity: 0.7;
+  }
+
+
+  /* Smaller, lighter date */
+  .day-number {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #6c757d;
+    /* Bootstrap muted */
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  /* Rows for morning/evening */
+  .slot-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  /* Style visible checkboxes */
+  .slot-checkbox {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #28a745;
+    /* green tick for available */
+  }
+
+  /* Busy slots in red */
+  .slot-checkbox.slot-busy {
+    accent-color: #dc3545;
+  }
+
+  .slot-checkbox.slot-busy:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
 </style>
 {% endblock %}
 {% block content %}
@@ -164,23 +298,39 @@
             {% for d in week %}
             <td>
               {% if d.month == month_start.month %}
-              <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
+              <!-- <div class="fw-bold">{{ d.strftime('%d/%m') }}</div> -->
 
-              <div class="slot-options">
-                {% for s in Sessions %}
+            <!-- <td> -->
+              <div class="day-number">{{ d.strftime('%d') }}</div>
+
+              <!-- Morning row -->
+              <div class="slot-row">
+                {% for s in Sessions if "A" in s.value %}
                 {% set spot = slot_map.get((d, s.value)) %}
-                {% set busy =  not spot.is_free %}
-                <label class="{% if busy %}slot-available{% else %}slot-busy{% endif %}">
-                  <input type="checkbox" class="slot-checkbox" data-date="{{ d.isoformat() }}"
-                    data-session="{{ s.value }}" {% if busy %}disabled{% elif spot.available %} checked {% endif %}>
-                  {{ s.value }}-{{spot.is_free}}-{{spot.available }}
-                </label>
+                {% set busy = spot and not spot.is_free %}
+                <input type="checkbox" class="slot-checkbox {% if busy %}slot-busy{% else %}slot-available{% endif %}"
+                  data-date="{{ d.isoformat() }}" data-session="{{ s.value }}" {% if busy %}disabled{% elif spot and
+                  spot.available %}checked{% endif %}>
                 {% endfor %}
               </div>
 
-              {% else %}
-              <div class="text-muted">–</div>
-              {% endif %}
+              <!-- Evening row -->
+              <div class="slot-row">
+                {% for s in Sessions if "P" in s.value %}
+                {% set spot = slot_map.get((d, s.value)) %}
+                {% set busy = spot and not spot.is_free %}
+                <input type="checkbox" class="slot-checkbox {% if busy %}slot-busy{% else %}slot-available{% endif %}"
+                  data-date="{{ d.isoformat() }}" data-session="{{ s.value }}" {% if busy %}disabled{% elif spot and
+                  spot.available %}checked{% endif %}>
+                {% endfor %}
+              </div>
+            <!-- </td> -->
+
+
+
+            {% else %}
+            <div class="text-muted">–</div>
+            {% endif %}
             </td>
             {% endfor %}
           </tr>

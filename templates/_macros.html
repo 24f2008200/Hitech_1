@@ -38,13 +38,148 @@
     </tbody>
   </table>
 </div>
+
+{% endmacro %}
+ 
+{% macro render_filter_table(columns, rows, table_id) %}
+<div class="scroll-table" id="{{ table_id }}-container">
+  <table class="table table-striped table-hover" id="{{ table_id }}">
+    <thead class="table-light">
+      <tr>
+        {% for col in columns %}
+        <th data-col="{{ col.key if col is mapping else col }}">
+          {{ col.label if col is mapping else col }}
+        </th>
+        {% endfor %}
+      </tr>
+      <tr class="filters">
+        {% for col in columns %}
+        <th>
+          {% if col is mapping and col.filterType == "select" %}
+            <select class="form-select form-select-sm filter-input" data-key="{{ col.key }}">
+              <option value="">All</option>
+              {% set values = rows | map(attribute=col.key) | list %}
+              {% for v in values | unique %}
+                {% if v %}
+                  <option value="{{ v }}">{{ v }}</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          {% else %}
+            <input type="text" class="form-control form-control-sm filter-input"
+                   placeholder="Filter {{ col.label if col is mapping else col }}"
+                   data-key="{{ col.key if col is mapping else col }}">
+          {% endif %}
+        </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr data-row-id="{{ row.id }}">
+        {% for col in columns %}
+        <td>
+          {% set key = col.key if col is mapping else col %}
+          {% if key in row %}
+            {% if col is mapping and col.type == "action" %}
+            {{ render_actions(row[key]) }}
+              <!-- {% for action in row[key] %}
+                <button type="button" class="btn btn-sm btn-primary action-btn"
+                        data-action="{{ action }}" data-row-id="{{ row.id }}">
+                  {{ action }}
+                </button>
+              {% endfor %} -->
+            {% elif row[key] is string %}
+              {{ row[key] }}
+            {% elif row[key] is sequence %}
+              {{ row[key] | join(', ') }}
+            {% else %}
+              {{ row[key] | safe }}
+            {% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+    <script>
+    
+    enableTableFilters('{{ table_id }}', {
+      onActionClick: (action, rowId) => {
+        console.log("Custom handler →", action, "on row", rowId);
+      }
+    });
+console.log("Filters enabled for table: {{ table_id }}");
+function enableTableFilters(tableId, options = {}) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+
+  const filters = table.querySelectorAll(".filter-input");
+  const tbody = table.querySelector("tbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+
+  // default callback if not provided
+  const onActionClick = options.onActionClick || function (action, rowId, rowEl) {
+    alert(`Action: ${action}, Row ID: ${rowId}`);
+  };
+
+  // attach action button listeners
+  table.querySelectorAll(".action-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      const action = e.target.dataset.action;
+      const rowId = e.target.dataset.rowId;
+      const rowEl = e.target.closest("tr");
+      onActionClick(action, rowId, rowEl);
+    });
+  });
+
+  // filters
+  filters.forEach(input => {
+    input.addEventListener("input", applyFilters);
+    input.addEventListener("change", applyFilters);
+  });
+
+  function applyFilters() {
+    const filterValues = {};
+    filters.forEach(f => {
+      filterValues[f.dataset.key] = f.value.toLowerCase();
+    });
+
+    rows.forEach(row => {
+      const cells = row.querySelectorAll("td");
+      let show = true;
+
+      filters.forEach((f, i) => {
+        const filterText = filterValues[f.dataset.key];
+        if (filterText) {
+          const cellText = (cells[i]?.textContent || "").toLowerCase();
+
+          if (f.tagName === "SELECT") {
+            if (filterText && cellText !== filterText) {
+              show = false;
+            }
+          } else {
+            if (!cellText.includes(filterText)) {
+              show = false;
+            }
+          }
+        }
+      });
+
+      row.style.display = show ? "" : "none";
+    });
+  }
+}
+</script>
 {% endmacro %}
 
 
 {% macro render_tabs(title, tabs) %}
 <div class="container mt-4">
   <!-- <h3>{{ title }}</h3> -->
-
+ 
   <!-- Tabs -->
   <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     {% for tab in tabs %}
@@ -66,7 +201,9 @@
       id="content-{{ loop.index }}"> -->
     <!-- return render_template("dashboard.html", tabs=tabs, active_tab="appointments") -->
     <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="content-{{ loop.index }}">
-      {% if tab.columns is defined and tab.columns %}
+      {% if tab.filterTable is defined and tab.columns %}
+      {{ render_filter_table(tab.columns, tab.rows, tab.filterTable) }}
+      {% elif tab.columns is defined and tab.columns %}
       {{ render_table(tab.columns, tab.rows) }}
       {% elif tab.page is defined %}
       {% include tab.page %}

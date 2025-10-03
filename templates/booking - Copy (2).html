@@ -3,63 +3,29 @@
 {% block title %}Doctor Dashboard - HMS{% endblock %}
 {% block styles %}
 <style>
-    .slot-options {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4 columns */
-  grid-gap: 8px;                          /* space between slots */
-  margin-top: 6px;
-}
+    .slot-available {
+        background-color: #d4edda;
+    }
 
-.slot-box {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 10px 0;
-  border: 2px solid #ccc;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.2s ease-in-out;
-}
+    /* green */
+    .slot-busy {
+        background-color: #f8d7da;
+    }
 
-/* Available vs Busy */
-.slot-available {
-  background-color: #e8f8e8;
-  color: #065f08;
-  border-color: #8bcf8b;
-}
-.slot-available:hover {
-  background-color: #c6eec6;
-}
+    /* red */
+    .slot-selected {
+        background-color: #cce5ff;
+    }
 
-.slot-busy {
-  background-color: #f8e8e8;
-  color: #8b0000;
-  border-color: #d79b9b;
-}
-.slot-busy:hover {
-  background-color: #f1caca;
-}
-/* Already have these */
-.slot-available {
-  background-color: #e8f8e8;
-  color: #065f08;
-  border-color: #8bcf8b;
-}
-.slot-busy {
-  background-color: #f8e8e8;
-  color: #8b0000;
-  border-color: #d79b9b;
-}
-
-/* NEW: Selected style */
-.slot-selected {
-  background-color: #007bff;   /* blue */
-  color: white;
-  border-color: #0056b3;
-}
-
+    /* blue */
+    .slot-box {
+        min-width: 120px;
+        text-align: center;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        padding: 6px;
+        border-radius: 5px;
+    }
 </style>
 
 {% endblock %}
@@ -106,31 +72,16 @@
                             {% if d.month == month_start.month %}
                             <div class="fw-bold">{{ d.strftime('%d/%m') }}</div>
 
-<div class="slot-options">
-    {% for s in Sessions if "A" in s.value %}
-    {% set a = avail_map.get((d, s.value)) %}
-    {% set busy = a and a.is_busy %}
-    <label class="slot-box {% if not a %}slot-busy{% elif busy %}slot-busy{% else %}slot-available{% endif %}"
-           data-date="{{ d }}"
-           data-session="{{ s.value }}">
-        {{ s.value }}
-    </label>
-    {% endfor %}
-</div>
-
-                            
-<div class="slot-options">
-    {% for s in Sessions if "P" in s.value %}
-    {% set a = avail_map.get((d, s.value)) %}
-    {% set busy = a and a.is_busy %}
-    <label class="slot-box {% if not a %}slot-busy{% elif busy %}slot-busy{% else %}slot-available{% endif %}"
-           data-date="{{ d }}"
-           data-session="{{ s.value }}">
-        {{ s.value }}
-    </label>
-    {% endfor %}
-</div>
-
+                            <div class="slot-options">
+                                {% for s in Sessions %}
+                                {% set a = avail_map.get((d, s.value)) %}
+                                {% set busy = a and a.is_busy %}
+                                <div class="slot-box {% if not a %}slot-busy{% elif busy %}slot-busy{% else %}slot-available{% endif %}"
+                                    data-date="{{ d }}" data-session="{{ s.value }}">
+                                    {{ s.value }}
+                                </div>
+                                {% endfor %}
+                            </div>
 
                             {% else %}
                             <!-- empty cell for prev/next month -->

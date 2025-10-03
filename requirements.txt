@@ -15,3 +15,7 @@ flask-caching
 reportlab
 flask-wtf
 flask_login
+faker
+SQLAlchemy
+flask-login
+werkzeug

@@ -9,7 +9,7 @@
 
     iframe {
       width: 100%;
-      height: 400px;
+      height: 600px;
       border: 1px solid #ccc;
       margin-top: 10px;
     }
@@ -39,3 +39,12 @@
 <!-- Results Frame -->
 <iframe name="resultsFrame"></iframe>
 
+<script>
+function resizeIframe(iframe) {
+  iframe.style.height = iframe.contentWindow.document.body.scrollHeight + 'px';
+}
+
+document.getElementById('resultsFrame').addEventListener("load", function() {
+  resizeIframe(this);
+});
+</script>

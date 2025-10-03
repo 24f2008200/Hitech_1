@@ -1,9 +1,11 @@
 
+ rm -rf .venv
+
 python -m venv .venv
-source venv/Scripts/activate
+source .venv/Scripts/activate
 pip install -r requirements.txt
 python -m pip install -r requirements.txt
-./venv/Scripts/python.exe -m pip install -r requirements.txt
+./.venv/Scripts/python.exe -m pip install -r requirements.txt
 
 npm install bootstrap-table
 
