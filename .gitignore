@@ -20,7 +20,7 @@ __pycache__/
 __pycache__/
 *.db
 Others/
-Mad1_P/
+Mad1/
 
 # Ignore VS Code settings
 #.vscode/
