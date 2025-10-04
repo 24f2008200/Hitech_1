@@ -13,7 +13,11 @@ doctor_bp = Blueprint("doctor", __name__, url_prefix="/doctor")
 def edit_doctor(doctor_id):
     doctor = Doctor.query.get_or_404(doctor_id)
     edit_url = url_for("doctor.edit_doctor",doctor_id=doctor_id)
-    home_url =get_home_url()
+    if current_user.role == "doctor" and current_user.id != doctor_id:
+        tab_id =1
+    else:
+        tab_id = 2
+    home_url = get_home_url(tab_id=tab_id)
     if request.method == "POST":
         name = request.form.get("first_name")
         last_name = request.form.get("last_name")
@@ -108,12 +112,12 @@ def edit_doctor(doctor_id):
     # GET request – render the edit form
     return render_template("form_base.html", form = doctor_form ,title = "Edit Doctor")
 
-@doctor_bp.route("/dashboard", methods=["GET"])
+@doctor_bp.route("/dashboard/<int:tab_id>", methods=["GET"])
 @doctor_required
-def doctor_dashboard():
+def doctor_dashboard(tab_id=1):
     doctor  = current_user
-    appointments = doctor.appointments
-    patients = {appt.patient for appt in appointments if appt.patient is not None}  # unique patients
+    appointments = sorted(doctor.appointments, key=lambda a: a.slot.date)
+    patients = [] # unique patients
     #print (patients)
     #return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
     # appt_rows = []
@@ -133,10 +137,15 @@ def doctor_dashboard():
     #             ],
     #         }) #"showUpdateForm(`{{ appt.id }}`, '{{ appt.patient.name }}', '{{ doctor.department.name  }}')"
     patient_rows = []
-    if doctor.appointments is not None:
-        for a in doctor.appointments:
-            if a.patient is not None:
-                patient_rows.append({"ID": a.patient.id, "Patient": a.patient.name +" " +a.patient.last_name, "Status": a.status,
+    if appointments is not None:
+        for a in appointments:
+            if a.patient is not None and a.patient not in patients:
+                patients.append(a.patient)
+                patient_rows.append({"ID": a.patient.id, 
+                                     "Patient": a.patient.name +" " +a.patient.last_name, 
+                                     "Date": a.slot.date.strftime("%Y-%m-%d") if a.slot else "N/A",
+                                     "Session": a.slot.session if a.slot else "N/A",
+                                     "Status": a.status.value,
                                      "Actions": [
                     {"label": "View", "url": url_for("patient.patient_history",  patient_id=a.patient.id), "color": "info"},
                     # {"label": "Close", "url": url_for("doctor.close_appointment",  appointment_id=a.id), "color": "success"},
@@ -150,8 +159,8 @@ def doctor_dashboard():
 
     appointments_rows = get_appointment_rows(doc_id=doctor.id,active=True,actions=actions)
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Time", "Status", "Reason", "Actions"], "rows": appointments_rows},
-        {"label": "My Patients", "columns": ["ID", "Patient", "Status","Actions"], "rows": patient_rows},
+        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Session", "Status", "Reason", "Actions"], "rows": appointments_rows},
+        {"label": "My Patients", "columns": ["ID", "Patient","Date","Session","Status","Actions"], "rows": patient_rows},
         {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
                 {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
@@ -161,7 +170,7 @@ def doctor_dashboard():
                                                             "extra":["OK"]},
     ]
 
-    return render_template("dashboard_base.html", title="", tabs=tabs)
+    return render_template("dashboard_base.html", title="", tabs=tabs, active_index=tab_id)
 
 
 
@@ -246,7 +255,7 @@ def update_history():
     db.session.commit()
 
     flash("Patient history updated successfully", "success")
-    return redirect(url_for("doctor.doctor_dashboard"))
+    return redirect(url_for("doctor.doctor_dashboard", tab_id=2))
 
 
 @doctor_bp.route("/edit_availability", methods=["POST"])
@@ -258,7 +267,7 @@ def edit_availability():
     data = request.get_json()
     doctor_id = current_user.id
     edit_url = url_for("doctor.edit_availability")
-    home_url =get_home_url()
+    home_url = get_home_url(tab_id=2)
     slots = data.get("slots", [])  # e.g., ["2025-01-21-morning-1", "2025-01-22-evening-0"]
 
     for slot in slots:
@@ -347,7 +356,7 @@ def complete(appointment_id):
         flash("Appointment completed. Treatment record created.", "success")
     except ValueError as e:
         flash(str(e), "danger")
-    return redirect(url_for("doctor.doctor_dashboard", doctor_id=appt.slot.doctor_id))
+    return redirect(url_for("doctor.doctor_dashboard", tab_id=1))
 
 
 
@@ -363,5 +372,5 @@ def block_slot(slot_id):
     except ValueError as e:
         flash(str(e), "danger")
 
-    return redirect(url_for("doctor.doctor_dashboard", doctor_id=slot.doctor_id))
+    return redirect(url_for("doctor.doctor_dashboard", tab_id=1))
 

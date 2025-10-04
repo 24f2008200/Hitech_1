@@ -22,31 +22,16 @@ def department_details(dept_id):
     department = Department.query.get_or_404(dept_id)
     doctors = Doctor.query.filter_by(department_id=dept_id).all()
 
-    doctor_rows = [{
-        "ID": d.id, 
-        "Name": d.name,
-        "Specialization": d.department.name if d.department else "—",
-        "Experience": d.experience,
-        "Actions": [
-            {"label": "View", "url": url_for("admin.doctor_details", doctor_id=d.id), "color": "info"},
-            {"label": "Edit", "url": url_for("admin.edit_doctor", doctor_id=d.id), "color": "warning"},
-            {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
-            {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
-            {"label": "Back ", "url": url_for("admin.dashboard", tab_id= 2), "color": "info"},
-        ] if current_user.role == "admin" else [
-            {"label": "Book Appointment", "url": url_for("doctor.doctor_availability", doctor_id=d.id), "color": "info"},
-            {"label": "Back ", "url": url_for("patient.patient_dashboard", tab_id=3), "color": "info"},
-        ]
-    } for d in doctors]
+    return render_template(
+        "department_details.html",
+        department=department,
+        doctors=doctors
+    )
 
-    tab_id = 2 if current_user.role == "admin" else 3
-    tabs = [{"label": "Doctor Details", "columns": ["ID", "Name", "Specialization", "Experience", "Actions"], "rows": doctor_rows}, ]   
-    return render_template("dashboard_base.html", title="Doctor Details", tabs=tabs, active_index=1)
 
-# @admin_bp.route("/dashboard", methods=["GET", "POST"])
-@admin_bp.route("/dashboard/<int:tab_id>", methods=["GET", "POST"])
+@admin_bp.route("/dashboard", methods=["GET", "POST"])
 @admin_required
-def admin_dashboard(tab_id):
+def admin_dashboard():
     doctors = Doctor.query.all()
     doctor_rows = []
     for d in doctors:
@@ -134,7 +119,7 @@ def admin_dashboard(tab_id):
     ).count()
 
     tabs = [
-        
+         {"label": "Develope", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
                 "total_appointments":total_appointments,"active_appointments":active_appointments,
                 "closed_appointments":closed_appointments}},
@@ -143,7 +128,6 @@ def admin_dashboard(tab_id):
         {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
         {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
         {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
-        {"label": "Develop", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
                 "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
                 "Admin can add/update doctor and patient profiles.",
@@ -162,9 +146,8 @@ def admin_dashboard(tab_id):
                 "extra":["OK"]},
 
     ]
-    
 
-    return render_template("dashboard_base.html", title=None, tabs=tabs, active_index=tab_id)
+    return render_template("dashboard_base.html", title=None, tabs=tabs,active_index=2)
     # return render_template("dashboard_base.html", title=None, tabs=tabs,active_tab="availablilty")
 
 @admin_bp.route("/query", methods=["GET", "POST"])
@@ -268,21 +251,15 @@ def search():
                 Patient.address.like(value_like),
                 Doctor.address.like(value_like)
             ))
-        elif feature == "date":
-            query = query.join(Slot, Appointment.slot_id == Slot.id).filter(
-                Slot.date.like(value_like)
-            )
-    
+
         for a in query.all():
-            print (a.slot.date ,a.slot.session if a.slot else "No slot")
             results.append({
                 "type": "appointment",
                 "id": a.id,
                 "P_name": f"{a.patient.name} {getattr(a.patient, 'last_name', '')}".strip(),
                 "D_name": f"{a.doctor.name} {getattr(a.doctor, 'last_name', '')}".strip(),
-                "slot": getattr(a, "slot", None).session if getattr(a, "slot", None) else None,
-                "date": getattr(a, "slot", None).date.strftime("%Y-%m-%d") if getattr(a, "slot", None) else None,
-                "status": getattr(a, "status", None).value if getattr(a, "status", None) else None,
+                "slot": getattr(a, "slot_id", None),
+                "date": getattr(a, "date", None),
                 "phone": getattr(a.patient, "phone", None) or getattr(a.doctor, "phone", None),
                 "email": getattr(a.patient, "email", None) or getattr(a.doctor, "email", None),
                 "address": getattr(a.patient, "address", None) or getattr(a.doctor, "address", None),   
@@ -296,10 +273,10 @@ def search():
         {"key": "address", "label": "Address"},
         {"key": "date", "label": "Date"},
         {"key": "slot", "label": "Session"},
-        {"key": "status", "label": "Status"},
 
         
     ]
+    print(results)
     return render_template("search.html", title="Search Results", 
                            searchResults_columns=searchResults_columns, 
                            searchResults_rows=results)
@@ -357,7 +334,7 @@ def add_department():
 def edit_department(department_id):
     department = Department.query.get_or_404(department_id)
     edit_url = url_for("admin.edit_department",department_id=department_id)
-    home_url = get_home_url(4)
+    home_url = get_home_url()
     if request.method == "POST":
         if current_user.role != "admin":
             flash("❌ Unauthorized", "danger")
@@ -548,11 +525,7 @@ def blacklist_doctor(doctor_id):
 def edit_patient(patient_id):
     patient = User.query.get_or_404(patient_id)
     edit_url = url_for("admin.edit_patient",patient_id=patient_id)
-    if current_user.role == "patient" and current_user.id != patient_id:
-        tab_id = 2
-    else:
-        tab_id =3
-    home_url =get_home_url(tab_id=tab_id)
+    home_url =get_home_url()
     if request.method == "POST":
         name = request.form.get("first_name")
         last_name = request.form.get("last_name")

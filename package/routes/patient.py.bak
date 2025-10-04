@@ -92,9 +92,9 @@ def register():
 
 
 
-@patient_bp.route("/dashboard/<int:tab_id>", methods=["GET", "POST"])
+@patient_bp.route("/dashboard", methods=["GET", "POST"])
 @patient_required
-def patient_dashboard(tab_id=1):
+def patient_dashboard():
     patient=  current_user
     appointments = patient.appointments
     departments = Department.query.all()
@@ -108,16 +108,14 @@ def patient_dashboard(tab_id=1):
                     {"label": "Cancel", "url": "patient.delete_appointment", "color": "danger"},
                 ]
     appt_rows = get_appointment_rows(pat_id=patient.id,active=True,actions=actions)
-    appointments_cols = [
-            {"key": "ID", "label": "ID"},
-            {"key": "Doctor", "label": "Doctor"},
-            {"key": "Date", "label": "Date"},
-            {"key": "Session", "label": "Time"},
-            {"key": "Department", "label": "Department"},
-            {"key": "Status", "label": "Status", "filterType": "select"},
-            {"key": "Actions", "label": "Actions", "type": "action"}]
-    
-
+    # for a in appointments:
+    #     appt_rows.append({
+    #         "ID": a.id,
+    #         "Doctor": a.doctor.name,
+    #         "Date": a.slot.date.strftime("%Y-%m-%d"),
+    #         "Time": a.slot.session,
+    #         "Status": a.status,
+    #     })
     treat_rows=[]
     for t in treatments:
         treat_rows.append({
@@ -136,10 +134,10 @@ def patient_dashboard(tab_id=1):
             ]
         })
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Session", "Status","Actions"], "rows": appt_rows},
+        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Time", "Status","Actions"], "rows": appt_rows},
         {"label": "My Treatments", "columns": ["ID", "Date", "Doctor", "Prescription"],"rows": treat_rows},
         {"label": "Departments", "columns":["Departments", "Action"],"rows": department_rows},
-            {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+                {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Patients can register and login themselves on the app.",
                                                           "Patients’ Dashboard must display all available specialization/departments",
                                                           "Patients’ Dashboard must display availability of doctors for the coming 7 days (1 week) and patients can read doctors profiles.",
@@ -148,7 +146,7 @@ def patient_dashboard(tab_id=1):
                                                             "extra":["OK"]},
     ]
 
-    return render_template("dashboard_base.html", title="Patient Dashboard", tabs=tabs, active_index=tab_id)
+    return render_template("dashboard_base.html", title="Patient Dashboard", tabs=tabs)
 
 
 
@@ -183,6 +181,7 @@ def appointments_book(doctor_id):
 
 
     try:
+        print(patient_id,spot.doctor_id,spot.id)
         appt =spot.book(patient_id)
         db.session.commit()
         flash("Appointment booked successfully!", "success")
@@ -198,11 +197,7 @@ def appointments_book(doctor_id):
 def delete_appointment(appointment_id):
     ap = Appointment.query.get_or_404(appointment_id)
     edit_url = url_for("patient.delete_appointment",appointment_id=appointment_id)
-    if current_user.role == "patient":
-        tab_id = 1
-    else:
-        tab_id = 5
-    home_url = get_home_url(tab_id=tab_id)
+    home_url =get_home_url()
     if request.method == "POST":
         code = int(request.form.get("confirmation"))
         if code !=appointment_id:
@@ -274,7 +269,7 @@ def patient_history(patient_id):
                            page=page,
                            total_pages=total_pages,
                            patient_id=patient_id,
-                           return_address =  url_for('doctor.doctor_dashboard', tab_id=2)
+                           return_address =  url_for('doctor.doctor_dashboard')
                            )
 
 
@@ -283,17 +278,10 @@ def patient_history(patient_id):
 def edit_appointment(appointment_id):
     ap = Appointment.query.get_or_404(appointment_id)
     edit_url = url_for("patient.edit_appointment",appointment_id=appointment_id)
-    if current_user.role == "patient":
-        tab_id = 1
-    else:
-        tab_id = 5
-    home_url = get_home_url(tab_id=tab_id)
-    if request.method == "POST":
-        flash("Editing appointment is not allowed. Please cancel and rebook.", "danger")
-        return redirect(home_url)
-
+    home_url =get_home_url()
+        
     appointment_form = {
-        "action": url_for("patient.edit_appointment", appointment_id=appointment_id)    ,
+        "action": home_url,
         "method": "POST",
         "fields": [
             {"label": "Patient Name", "name": "first_name", "type": "text",
@@ -323,11 +311,9 @@ def edit_appointment(appointment_id):
         ],
 
         "other_buttons" :[{"label" :"Delete" ,"url": url_for('patient.delete_appointment',
-                              appointment_id=appointment_id)},
-                              {"label" :"Back" ,"url":home_url}
-                              ],
+                              appointment_id=appointment_id)}],
 
-        "submit_label": "Edit appointment"
+        "submit_label": "View appointment"
     }
     
 

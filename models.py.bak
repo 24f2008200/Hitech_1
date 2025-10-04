@@ -50,6 +50,7 @@ class myModel:
 
             # Handle Enum (like AppointmentStatus)
             elif isinstance(value, Enum):
+                print("I am here")
                 value = "Test" #value.value
 
             # Handle booleans explicitly if needed (though JSON can already do True/False)
@@ -358,7 +359,8 @@ def search_all(search_term):
                             "matched_value": row.value
                         })
                 except SQLAlchemyError:
-                        # Skip columns that can't be searched
+                    print("Error")
+                    # Skip columns that can't be searched
                     continue
 
     return results
