@@ -7,10 +7,18 @@ from sqlalchemy import Enum,select, func ,inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import Query
+
+
+
+
+
 
 
 
 db = SQLAlchemy()
+
+    
 # --------------------------
 # Enums
 # --------------------------
@@ -70,6 +78,9 @@ class myModel:
                     result[rel.key] = related_value.to_dict(True, seen)
 
         return result
+
+
+    
 
 
 # --------------------------
@@ -157,7 +168,7 @@ class Doctor(User):
     department = db.relationship("Department", back_populates="doctors")
     appointments = db.relationship("Appointment", back_populates="doctor")
     availability = db.relationship("Slot", back_populates="doctor", cascade="all, delete-orphan")
-
+    speciality = db.Column(db.String(100))
 
     __mapper_args__ = {
         "polymorphic_identity": "doctor",
@@ -211,15 +222,18 @@ class Appointment(db.Model,myModel):
         self.slot.is_free = True
         db.session.add(self)
 
-    def complete(self, treatment_data=None):
+    def complete(self, treatment=None):
         """Mark appointment as completed and create Treatment record."""
         if self.status != AppointmentStatus.BOOKED:
             raise ValueError("Only booked appointments can be completed.")
         self.status = AppointmentStatus.COMPLETED
         self.slot.is_free = False
         self.slot.available = False # slot stays closed
-        treatment = Treatment(appointment=self, **(treatment_data or {}))
-        db.session.add(treatment)
+        
+        if treatment:
+            treatment.appointment = self
+            db.session.add(treatment)
+
         return treatment
 
 class Slot(db.Model,myModel):
@@ -255,7 +269,7 @@ class Slot(db.Model,myModel):
         if not self.is_free:
             raise ValueError("This slot is already booked.")
 
-        patient = Patient.query.get(patient_id)
+        patient = Patient.query.filter(Patient.id == patient_id).first()
         if not patient:
             raise ValueError("Patient not found.")
 

@@ -2,6 +2,7 @@
 import calendar
 from flask import Blueprint, render_template, request, abort, url_for
 from flask_login import current_user , LoginManager
+from Mad1.package.routes import doctor
 from models import *
 from package.routes.auth import *
 from package.routes.utils import *
@@ -11,7 +12,10 @@ doctor_bp = Blueprint("doctor", __name__, url_prefix="/doctor")
 @doctor_bp.route("/edit/<int:doctor_id>", methods=["GET", "POST"])
 @role_required("admin", "doctor")
 def edit_doctor(doctor_id):
-    doctor = Doctor.query.get_or_404(doctor_id)
+    doctor = Doctor.query.filter(
+        Doctor.id == doctor_id,
+        Doctor.status != "deleted"
+        ).first_or_404()
     edit_url = url_for("doctor.edit_doctor",doctor_id=doctor_id)
     if current_user.role == "doctor" and current_user.id != doctor_id:
         tab_id =1
@@ -37,6 +41,7 @@ def edit_doctor(doctor_id):
         experience = request.form.get("experience")
         dept_id = request.form.get("department_id")
         password = request.form.get("password")
+        status = request.form.get("status") if current_user.role == "admin" else None
 
         if not name or not dept_id:
             flash("name and specialization are required.", "danger")
@@ -53,6 +58,8 @@ def edit_doctor(doctor_id):
         doctor.license_number = license_number
         doctor.experience = experience
         doctor.department_id = dept_id
+        if status:
+            doctor.status = status
 
         if password:  # only update password if user entered a new one
             doctor.set_password(password)
@@ -107,6 +114,11 @@ def edit_doctor(doctor_id):
         "other_buttons" :[{"label" :"Back" ,"url": home_url}],
         "submit_label": "Update Doctor"
     }
+    if current_user.role == "admin":
+        doctor_form["fields"].insert(3,  # Insert after last_name
+            {"label": "Status", "name": "status", "type": "select",
+             "options": [("active", "Active"), ("inactive", "Inactive"), ("blacklisted", "Blacklisted")],
+             "required": True, "value": field_value(doctor, "status")})
     
 
     # GET request – render the edit form
@@ -159,9 +171,9 @@ def doctor_dashboard(tab_id=1):
 
     appointments_rows = get_appointment_rows(doc_id=doctor.id,active=True,actions=actions)
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Patient", "Date", "Session", "Status", "Reason", "Actions"], "rows": appointments_rows},
+        {"label": "Upcomming Appointments", "columns": ["ID", "Patient", "Date", "Session", "Reason", "Actions"], "rows": appointments_rows},
         {"label": "My Patients", "columns": ["ID", "Patient","Date","Session","Status","Actions"], "rows": patient_rows},
-        {"label": "Appointments", "columns": ["ID", "Date","Department","Doctor","Patient","Actions"], "rows": appointments_rows},
+        {"label": "All Appointments", "columns": ["ID", "Date","Session","Patient", "Reason", "Status","Actions"], "rows": appointments_rows},
                 {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
                                                           "Doctor's dashboard must have the option to mark appointments as Completed or Cancelled.",
@@ -177,28 +189,11 @@ def doctor_dashboard(tab_id=1):
 @doctor_bp.route("/availability") # by doc
 @doctor_required
 def availability():
-    # doctor_id = current_user.id
-    # start = date.today()
-    # days = [start + timedelta(days=i) for i in range(90)]
-
-    # # Fetch existing availability from DB
-    # avail_records = Slot.query.filter(
-    #     Slot.doctor_id == doctor_id,
-    #     Slot.date.between(start, days[-1]),
-    #     Slot.available == True
-    # ).all()
-
-    # # Map: {date: {session: available}}
-    # slots = {d.isoformat(): {"morning": False, "afternoon": False, "evening": False}
-    #          for d in days}
-
-    # for rec in avail_records:
-    #     slots[rec.date.isoformat()][rec.session] = rec.available
-    #     print(rec)
-
-    # return render_template("availability.html", days=days, slots=slots, doctor_id=doctor_id)
     doctor_id = current_user.id
-    doctor = Doctor.query.get_or_404(doctor_id)
+    doctor = Doctor.query.filter(
+        Doctor.id == doctor_id,
+        Doctor.status != "deleted"
+    ).first_or_404()
     today = date.today()
     months = []
 
@@ -296,7 +291,10 @@ def edit_availability():
 @doctor_bp.route("/availability/<int:doctor_id>") # by patient
 @login_required
 def doctor_availability(doctor_id):
-    doctor = Doctor.query.get_or_404(doctor_id)
+    doctor = Doctor.query.filter(
+        Doctor.id == doctor_id,
+        Doctor.status != "deleted"
+        ).first_or_404()
     today = date.today()
     months = []
 
@@ -331,15 +329,117 @@ def doctor_details(doctor_id):
 
 
 
-@doctor_bp.route("/update_appointment/<int:appointment_id>")
+@doctor_bp.route("/update_appointment/<int:appointment_id>",methods=["GET","POST"])
 @doctor_required
 def update_appointment(appointment_id):
-    return "todo"
+    appointment = Appointment.query.get_or_404(appointment_id)
+    patient = appointment.patient
+    edit_url = url_for("doctor.update_appointment", appointment_id=appointment_id)
+    home_url = get_home_url(tab_id=1)
+    treatment = appointment.treatment if appointment else None
 
-@doctor_bp.route("/close_appointment/<int:appointment_id>")
+    if request.method == "GET":
+         treatment_form = {
+        "action": edit_url,
+        "method": "POST",
+        "fields": [
+            {"label": "Name", "name": "first_name", "type": "text",
+            "noedit": True, "value": patient.name +" "+ patient.last_name if patient else ""},
+
+            {"label": "Visit Type", "name": "visit_type", "type": "text",
+            "value": field_value(treatment, "visit_type")},
+
+            {"label": "Tests Done", "name": "test_done", "type": "text",
+            "required": False, "value":field_value(treatment, "tests")},
+
+            {"label": "Diagnosis", "name": "diagnosis", "type": "textarea",
+            "required": True, "value":field_value(treatment, "diagnosis")},
+
+            {"label": "Prescription", "name": "prescription", "type": "textarea",
+            "value":field_value(treatment, "prescription")},
+
+            {"label": "Medicines", "name": "medicines", "type": "textarea",
+            "value":field_value(treatment, "medicines")},
+
+            {"label": "Notes", "name": "notes", "type": "textarea",
+            "value":field_value(treatment, "notes")},
+        ],
+
+        "other_buttons" :[{"label" :"Back" ,"url": home_url}],
+        "submit_label": "Update Appointment"
+        }
+         return render_template("form_base.html", form = treatment_form ,title = "Edit Appointment")
+         
+    elif request.method == "POST":
+        appointment_id = request.form.get("appointment_id")
+
+        visit_type = request.form.get("visit_type")
+        test_done = request.form.get("test_done")
+        diagnosis = request.form.get("diagnosis")
+        prescription = request.form.get("prescription")
+        medicines = request.form.get("medicines")   
+        notes = request.form.get("notes")
+
+        if treatment:
+            treatment.visit_type = visit_type
+            treatment.tests = test_done
+            treatment.diagnosis = diagnosis
+            treatment.prescription = prescription
+            treatment.medicines = medicines
+            treatment.notes = notes
+            db.session.commit()
+        else:
+            treatment = Treatment(
+                appointment=appointment,
+                diagnosis=diagnosis,
+                prescription=prescription,
+                visit_type=visit_type,
+                tests=test_done,
+                medicines=medicines,
+                notes=notes
+            )
+            db.session.add(treatment)
+            db.session.commit()
+
+    flash("Patient history updated successfully", "success")
+    return redirect(url_for("doctor.doctor_dashboard", tab_id=1))
+
+@doctor_bp.route("/close_appointment/<int:appointment_id>", methods=["GET", "POST"])
 @doctor_required
 def close_appointment(appointment_id):
-    return "todo"
+    ap = Appointment.query.get_or_404(appointment_id)
+    edit_url = url_for("doctor.close_appointment", appointment_id=appointment_id)
+    home_url = get_home_url()
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code != appointment_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to Close this appointment",
+                                   confirmation_code = appointment_id,
+                                   button_msg = "Yes-Close",
+                                   return_url = edit_url,
+                                      cancel_url = home_url
+                                   )
+        
+        try:
+            t = ap.treatment
+            ap.complete(t)
+            db.session.commit()
+            flash("✅ That  appoinment is Closed", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error Closing appointment: {e}", "danger")
+            return redirect(home_url)
+
+    return render_template('confirmation.html',
+                                   message ="Do You want to Close this appointment",
+                                   confirmation_code = appointment_id,
+                                   button_msg = "Yes-Close",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )
+
 
 @doctor_bp.route("/cancel_appointment/<int:appointment_id>")
 @doctor_required

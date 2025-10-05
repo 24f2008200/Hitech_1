@@ -1,11 +1,12 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "Debug P1",
       "type": "debugpy",
       "request": "launch",
-      "program": "${workspaceFolder}/init_db.py",
+      "program": "${workspaceFolder}/seed.py",
       "console": "integratedTerminal"
     },
     {

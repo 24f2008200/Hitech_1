@@ -84,6 +84,7 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
             "Patient": f"{a.patient.name} {a.patient.last_name}",
             "Date": a.slot.date.strftime("%Y-%m-%d"),
             "Session": a.slot.session,
+            "Reason": a.reason,
             "Department": a.doctor.department.name if a.doctor.department else "N/A",
             "Status": a.status.value,  # BOOKED / CANCELLED / COMPLETED
             "Actions": [{"label":p["label"],"url":url_for(p["url"],appointment_id=a.id),"color":p["color"]} for p in actions

@@ -11,43 +11,11 @@ login_manager = LoginManager()
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
-
-
-
-
-@admin_bp.route("/department_details/<int:dept_id>", methods=["GET"])
-@login_required
-def department_details(dept_id):
-
-    department = Department.query.get_or_404(dept_id)
-    doctors = Doctor.query.filter_by(department_id=dept_id).all()
-
-    doctor_rows = [{
-        "ID": d.id, 
-        "Name": d.name,
-        "Specialization": d.department.name if d.department else "—",
-        "Experience": d.experience,
-        "Actions": [
-            {"label": "View", "url": url_for("admin.doctor_details", doctor_id=d.id), "color": "info"},
-            {"label": "Edit", "url": url_for("admin.edit_doctor", doctor_id=d.id), "color": "warning"},
-            {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
-            {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
-            {"label": "Back ", "url": url_for("admin.dashboard", tab_id= 2), "color": "info"},
-        ] if current_user.role == "admin" else [
-            {"label": "Book Appointment", "url": url_for("doctor.doctor_availability", doctor_id=d.id), "color": "info"},
-            {"label": "Back ", "url": url_for("patient.patient_dashboard", tab_id=3), "color": "info"},
-        ]
-    } for d in doctors]
-
-    tab_id = 2 if current_user.role == "admin" else 3
-    tabs = [{"label": "Doctor Details", "columns": ["ID", "Name", "Specialization", "Experience", "Actions"], "rows": doctor_rows}, ]   
-    return render_template("dashboard_base.html", title="Doctor Details", tabs=tabs, active_index=1)
-
 # @admin_bp.route("/dashboard", methods=["GET", "POST"])
 @admin_bp.route("/dashboard/<int:tab_id>", methods=["GET", "POST"])
 @admin_required
 def admin_dashboard(tab_id):
-    doctors = Doctor.query.all()
+    doctors = Doctor.query.filter(Doctor.status != "deleted").all()
     doctor_rows = []
     for d in doctors:
         doctor_rows.append({
@@ -74,13 +42,13 @@ def admin_dashboard(tab_id):
             ],
         })
 
-    patients = Patient.query.all()
+    patients = Patient.query.filter(Patient.status != "deleted").all()
     patient_rows = [{
         "ID": p.id, 
         "Name": p.name + " " + p.last_name, 
         "Phone": p.phone,
         "Email": p.email,
-        "Status": "OK" if p.status == "active" else "Blocked",
+        "Status": p.status,
          "Actions": [
                 {"label": "Edit", "url": url_for("admin.edit_patient", patient_id=p.id), "color": "warning"},
                 {"label": "Delete", "url": url_for("admin.delete_patient", patient_id=p.id), "color": "danger"},
@@ -181,16 +149,17 @@ def search():
         if feature == "name":
             query = Patient.query.filter(or_(
                 Patient.name.like(value_like),
-                Patient.last_name.like(value_like)  # if you have last_name
+                Patient.last_name.like(value_like),  # if you have last_name
+                Patient.status != "deleted"
             ))
         elif feature == "phone":
-            query = Patient.query.filter(Patient.phone.like(value_like))
+            query = Patient.query.filter(Patient.phone.like(value_like), Patient.status != "deleted")
         elif feature == "email":
-            query = Patient.query.filter(Patient.email.like(value_like))
+            query = Patient.query.filter(Patient.email.like(value_like), Patient.status != "deleted")
         elif feature == "id":
-            query = Patient.query.filter(Patient.id.like(value_like))
+            query = Patient.query.filter(Patient.id.like(value_like), Patient.status != "deleted")
         elif feature == "address":
-            query = Patient.query.filter(Patient.address.like(value_like))
+            query = Patient.query.filter(Patient.address.like(value_like), Patient.status != "deleted")
 
         if query:
             for p in query.all():
@@ -212,16 +181,17 @@ def search():
         if feature == "name":
             query = Doctor.query.filter(or_(
                 Doctor.name.like(value_like),
-                Doctor.last_name.like(value_like)
+                Doctor.last_name.like(value_like),
+                 Doctor.status != "deleted"
             ))
         elif feature == "phone":
-            query = Doctor.query.filter(Doctor.phone.like(value_like))
+            query = Doctor.query.filter(Doctor.phone.like(value_like), Doctor.status != "deleted")
         elif feature == "email":
-            query = Doctor.query.filter(Doctor.email.like(value_like))
+            query = Doctor.query.filter(Doctor.email.like(value_like), Doctor.status != "deleted")
         elif feature == "id":
-            query = Doctor.query.filter(Doctor.id.like(value_like))
+            query = Doctor.query.filter(Doctor.id.like(value_like), Doctor.status != "deleted")
         elif feature == "address":
-            query = Doctor.query.filter(Doctor.address.like(value_like))
+            query = Doctor.query.filter(Doctor.address.like(value_like), Doctor.status != "deleted")
 
         if query:
             for d in query.all():
@@ -245,7 +215,9 @@ def search():
         if feature == "name":
             query = query.filter(or_(
                 Patient.name.like(value_like),
-                Doctor.name.like(value_like)
+                Doctor.name.like(value_like),
+                Patient.last_name.like(value_like),
+                Doctor.last_name.like(value_like)
             ))
         elif feature == "phone":
             query = query.filter(or_(
@@ -351,6 +323,34 @@ def add_department():
     
     return render_template("form_base.html", form = department_form ,title = "Add Department")
 
+
+@admin_bp.route("/department_details/<int:dept_id>", methods=["GET"])
+@login_required
+def department_details(dept_id):
+
+    department = Department.query.get_or_404(dept_id)
+    doctors = Doctor.query.filter_by(department_id=dept_id).all()
+
+    doctor_rows = [{
+        "ID": d.id, 
+        "Name": d.name,
+        "Specialization": d.department.name if d.department else "—",
+        "Experience": d.experience,
+        "Actions": [
+            {"label": "View", "url": url_for("admin.doctor_details", doctor_id=d.id), "color": "info"},
+            {"label": "Edit", "url": url_for("admin.edit_doctor", doctor_id=d.id), "color": "warning"},
+            {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
+            {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
+            {"label": "Back ", "url": url_for("admin.dashboard", tab_id= 2), "color": "info"},
+        ] if current_user.role == "admin" else [
+            {"label": "Book Appointment", "url": url_for("doctor.doctor_availability", doctor_id=d.id), "color": "info"},
+            {"label": "Back ", "url": url_for("patient.patient_dashboard", tab_id=3), "color": "info"},
+        ]
+    } for d in doctors]
+
+    tab_id = 2 if current_user.role == "admin" else 3
+    tabs = [{"label": "Doctor Details", "columns": ["ID", "Name", "Specialization", "Experience", "Actions"], "rows": doctor_rows}, ]   
+    return render_template("dashboard_base.html", title="Doctor Details", tabs=tabs, active_index=1)
 
 @admin_bp.route("/edit_department/<int:department_id>", methods=["GET", "POST"])
 @admin_required
@@ -533,14 +533,84 @@ def add_doctor():
 @admin_bp.route("/delete_doctor/<int:doctor_id>", methods=["GET", "POST"])
 @admin_required
 def delete_doctor(doctor_id):
-    return "todo"
+    doc = Doctor.query.get_or_404(doctor_id)
+    edit_url = url_for("admin.delete_doctor",doctor_id=doctor_id)
+    tab_id = 2
+    home_url = get_home_url(tab_id=tab_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code !=doctor_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to remove this doctor", 
+                                   confirmation_code = doctor_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            app =doc.appointments
+            for a in app:
+                if a.status == AppointmentStatus.BOOKED:
+                    slot = a.slot
+                    if slot:
+                        slot.cancel()
+            doc.status = "deleted"
+            db.session.commit()
+            flash("✅ That  doctor is removed", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error removing doctor: {e}", "danger")
+            return redirect(home_url)
 
+    return render_template('confirmation.html',
+                                   message ="Do You want to remove this doctor",
+                                   confirmation_code = doctor_id,
+                                   button_msg = "Yes-Remove",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )
 
 @admin_bp.route("/blacklist_doctor/<int:doctor_id>", methods=["GET", "POST"])
 @admin_required
 def blacklist_doctor(doctor_id):
-    return "todo"
+    doc = Doctor.query.get_or_404(doctor_id)
+    edit_url = url_for("admin.blacklist_doctor",doctor_id=doctor_id)
+    tab_id = 2
+    home_url = get_home_url(tab_id=tab_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code !=doctor_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to blacklist this doctor", 
+                                   confirmation_code = doctor_id,
+                                   button_msg = "Yes-Blacklist",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            app =doc.appointments
+            for a in app:
+                if a.status == AppointmentStatus.BOOKED:
+                    slot = a.slot
+                    if slot:
+                        slot.cancel()
+            doc.status = "blacklisted"
+            db.session.commit()
+            flash("✅ That  doctor is blacklisted", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error blacklisting doctor: {e}", "danger")
+            return redirect(home_url)
 
+    return render_template('confirmation.html',
+                                   message ="Do You want to blacklist this doctor",
+                                   confirmation_code = doctor_id,
+                                   button_msg = "Yes-Blacklist",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )
 
 
 @admin_bp.route("/edit_patient/<int:patient_id>", methods=["GET", "POST"])
@@ -635,10 +705,89 @@ def edit_patient(patient_id):
 @admin_bp.route("/delete_patient/<int:patient_id>", methods=["GET", "POST"])
 @admin_required
 def delete_patient(patient_id):
-    return "todo"
+    patient = Patient.query.filter(
+                Patient.id == patient_id,
+                Patient.status != "deleted"
+            ).first()
+    edit_url = url_for("admin.delete_patient", patient_id=patient_id)
+    tab_id = 2
+    home_url = get_home_url(tab_id=tab_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code != patient_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to remove this patient", 
+                                   confirmation_code = patient_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            app =patient.appointments
+            for a in app:
+                if a.status == AppointmentStatus.BOOKED:
+                    slot = a.slot
+                    if slot:
+                        slot.cancel()
+            patient.status = "deleted"
+            db.session.commit()
+            flash("✅ That  patient is removed", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error removing patient: {e}", "danger")
+            return redirect(home_url)
+
+    return render_template('confirmation.html',
+                                   message ="Do You want to remove this patient",
+                                   confirmation_code = patient_id,
+                                   button_msg = "Yes-Remove",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )
+
 
 
 @admin_bp.route("/blacklist_patient/<int:patient_id>", methods=["GET", "POST"])
 @admin_required
 def blacklist_patient(patient_id):
-    return "todo"
+    patient = Patient.query.filter(
+                Patient.id == patient_id,
+                Patient.status != "deleted"
+            ).first()
+    edit_url = url_for("admin.blacklist_patient", patient_id=patient_id)
+    tab_id = 2
+    home_url = get_home_url(tab_id=tab_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code != patient_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to blacklist this patient", 
+                                   confirmation_code = patient_id,
+                                   button_msg = "Yes-Blacklist",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            app =patient.appointments
+            for a in app:
+                if a.status == AppointmentStatus.BOOKED:
+                    slot = a.slot
+                    if slot:
+                        slot.cancel()
+            patient.status = "blacklisted"
+            db.session.commit()
+            flash("✅ That  patient is blacklisted", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error blacklisting patient: {e}", "danger")
+            return redirect(home_url)
+
+    return render_template('confirmation.html',
+                                   message ="Do You want to blacklist this patient",
+                                   confirmation_code = patient_id,
+                                   button_msg = "Yes-Blacklist",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )

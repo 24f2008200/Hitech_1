@@ -5,14 +5,57 @@
 
 {% endblock %}
 {% block content %}
+<style>
+  .confirm-container {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    background-color: #fff;
+    text-align: center;
+    font-family: Arial, sans-serif;
+  }
+  .confirm-container h2 {
+    margin-bottom: 20px;
+    font-size: 1.4rem;
+    color: #333;
+  }
+  .confirm-container button {
+    padding: 10px 20px;
+    margin: 10px 8px 0 8px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  .confirm-btn {
+    background-color: #4CAF50;
+    color: white;
+  }
+  .confirm-btn:hover {
+    background-color: #45a049;
+  }
+  .cancel-btn {
+    background-color: #e0e0e0;
+    color: #333;
+  }
+  .cancel-btn:hover {
+    background-color: #c9c9c9;
+  }
+</style>
 
-<h2>{{ message }}</h2>
-<form method="post" action = {{ return_url}}>
-<input type="hidden" name="confirmation" id="selectedSession" value = {{confirmation_code}}>
-<button>{{button_msg}}</button>
-</form>
-
+<div class="confirm-container">
+  <h2>{{ message }}</h2>
+  <form method="post" action="{{ return_url }}">
+    <input type="hidden" name="confirmation" id="selectedSession" value="{{ confirmation_code }}">
+    <button type="submit" class="confirm-btn">{{ button_msg }}</button>
+    <button type="button" class="cancel-btn" onclick="window.location.href='{{ cancel_url }}'">Cancel</button>
+  </form>
+</div>
 {% endblock %}
+
 {% block scripts %}
 
 {% endblock %} 

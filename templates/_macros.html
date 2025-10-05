@@ -177,8 +177,9 @@
 
 
 {% macro render_tabs(title, tabs, active_index) %}
-<div class="container-fluid">
+
   {% if tabs|length > 1 %}
+  <div class="container-fluid"></div>
   <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
     {% for tab in tabs %}
     <li class="nav-item" role="presentation">
@@ -189,17 +190,13 @@
     </li>
     {% endfor %}
   </ul>
+  </div>
   {% endif %}
 
 
   <!-- Tab Content -->
   <div class="tab-content mt-3">
     {% for tab in tabs %}
-    <!-- <div class="tab-pane fade {% if loop.index0 == active_index %}show active{% endif %}" 
-       id="content-{{ loop.index }}"> -->
-    <!-- <div class="tab-pane fade {% if tab.title|lower == active_tab %}show active{% endif %}"
-      id="content-{{ loop.index }}"> -->
-    <!-- return render_template("dashboard.html", tabs=tabs, active_tab="appointments") -->
     <div class="tab-pane fade {% if loop.index == active_index %}show active{% endif %}" id="content-{{ loop.index }}">
       {% if tab.filterTable is defined and tab.columns %}
       {{ render_filter_table(tab.columns, tab.rows, tab.filterTable) }}
@@ -217,7 +214,7 @@
 
   </div>
 
-</div>
+
 {% endmacro %}
 
 {% macro render_form(form) %}
@@ -228,7 +225,7 @@
     <div class="col-md-9">
 
       {% if field.type == "select" %}
-      <select name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
+      <select name="{{ field.name }}" class="form-control"  {% if field.required %}required{% endif %}>
         {% for value, text in field.options %}
         <option value="{{ value }}" {% if field.value is defined and field.value==value %}selected{% endif %}>
           {{ text }}
@@ -245,7 +242,7 @@
         value="{{ field.value or '' }}">
       {% else %}
       <input type="{{ field.type }}" name="{{ field.name }}" class="form-control" {% if field.required %}required{%
-        endif %} {% if field.value is defined %}value="{{ field.value or '' }}" {% endif %}>
+        endif %} {% if field.value is defined %}value="{{ field.value or '' }}" {% endif %}{% if field.noedit %}disabled{% endif %}>
       {% endif %}
 
     </div>

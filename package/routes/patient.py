@@ -207,7 +207,7 @@ def delete_appointment(appointment_id):
         code = int(request.form.get("confirmation"))
         if code !=appointment_id:
             return render_template('confirmation.html',
-                                   message ="Do You want to cancel this appointment",
+                                   message ="Do You want to cancel this appointment", 
                                    confirmation_code = appointment_id,
                                    button_msg = "Yes-Delete",
                                    return_url = edit_url
@@ -227,7 +227,8 @@ def delete_appointment(appointment_id):
                                    message ="Do You want to cancel this appointment",
                                    confirmation_code = appointment_id,
                                    button_msg = "Yes-Delete",
-                                   return_url = edit_url
+                                   return_url = edit_url,
+                                   cancel_url = home_url
                                    )
 
 
@@ -239,7 +240,10 @@ def patient_history(patient_id):
     per_page = 10   # visits per page
 
     # Fetch from DB (example, replace with ORM query)
-    patient = Patient.query.get_or_404(patient_id)
+    patient = Patient.query.filter(
+                Patient.id == patient_id,
+                Patient.status != "deleted"
+            ).first()
     treatments = [
         appt.treatment
         for appt in patient.appointments
