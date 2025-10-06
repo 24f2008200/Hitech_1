@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Query
+from sqlalchemy.orm import aliased
 
 
 
@@ -38,44 +39,63 @@ class Sessions(enum.Enum):
 
 
 
-class myModel:
-    def to_dict(self, include_relationships=False, seen=None):
+
+class myModel(db.Model):
+    __abstract__ = True
+
+    def to_dict(self, include_relationships=False, seen=None, depth=1):
+        """
+        Convert SQLAlchemy model to dict safely.
+        include_relationships=True -> include related objects up to 'depth' levels.
+        depth=0 -> no recursion beyond this object.
+        """
         if seen is None:
             seen = set()
 
-        identity = (self.__class__, self.id)
+        identity = (self.__class__, getattr(self, "id", None))
         if identity in seen:
-            return {"id": self.id}
+            return {"id": getattr(self, "id", None)}
         seen.add(identity)
 
         result = {}
+
+        # Basic columns
         for column in self.__table__.columns:
             value = getattr(self, column.name)
-
-            # Handle datetime
             if isinstance(value, datetime):
-                value = value.isoformat()
-
-            # Handle Enum (like AppointmentStatus)
-            elif isinstance(value, Enum):
-                value = "Test" #value.value
-
-            # Handle booleans explicitly if needed (though JSON can already do True/False)
-            elif isinstance(value, bool):
-                value = bool(value)
-
+                value = value.strftime("%Y-%m-%d")
+            elif isinstance(value, enum.Enum):
+                value = value.value
             result[column.name] = value
 
-        # Optionally serialize relationships
-        if include_relationships:
+        # Relationships
+        if include_relationships and depth > 0:
             for rel in self.__mapper__.relationships:
                 related_value = getattr(self, rel.key)
+
                 if related_value is None:
                     result[rel.key] = None
-                elif isinstance(related_value, list):  # one-to-many
-                    result[rel.key] = [item.to_dict(True, seen) for item in related_value]
-                else:  # many-to-one / one-to-one
-                    result[rel.key] = related_value.to_dict(True, seen)
+                    continue
+
+                # One-to-many
+                if isinstance(related_value, list):
+                    if rel.mapper.class_.__name__ == "Slot":
+                        related_value = [
+                            x for x in related_value if getattr(x, "ever_active", False)
+                        ]
+
+                    # Recursive only if depth > 1
+                    result[rel.key] = [
+                        x.to_dict(True, seen, depth=depth - 1) for x in related_value
+                    ]
+
+                # Many-to-one / one-to-one
+                else:
+                    # Optional filter: ignore inactive Slot
+                    if rel.mapper.class_.__name__ == "Slot" and not getattr(related_value, "ever_active", False):
+                        result[rel.key] = None
+                    else:
+                        result[rel.key] = related_value.to_dict(True, seen, depth=depth - 1)
 
         return result
 
@@ -86,7 +106,7 @@ class myModel:
 # --------------------------
 # Base User Model
 # --------------------------
-class User(db.Model,UserMixin,myModel):
+class User(myModel,UserMixin):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -130,7 +150,7 @@ class User(db.Model,UserMixin,myModel):
 # --------------------------
 # Admin
 # --------------------------
-class Admin(User,myModel):
+class Admin(User):
     __tablename__ = "admins"
 
     id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
@@ -145,7 +165,7 @@ class Admin(User,myModel):
 # --------------------------
 # Department
 # --------------------------
-class Department(db.Model,myModel):
+class Department(myModel):
     __tablename__ = "departments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -196,7 +216,7 @@ class Patient(User):
 # --------------------------
 # Appointment 
 # --------------------------
-class Appointment(db.Model,myModel):
+class Appointment(myModel):
     __tablename__ = "appointments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -236,14 +256,14 @@ class Appointment(db.Model,myModel):
 
         return treatment
 
-class Slot(db.Model,myModel):
+class Slot(myModel):
     __tablename__ = "availability" 
     id = db.Column(db.Integer, primary_key=True)
 
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     session = db.Column(db.String(20), nullable=False)   # morning / evening
-    block_reason = db.Column(db.Text, nullable=True)      # <-- NEW
+    ever_active = db.Column(db.Boolean, default=False, nullable=False)
     available = db.Column(db.Boolean, default=True, nullable=False)
     is_free = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -290,6 +310,7 @@ class Slot(db.Model,myModel):
         status=AppointmentStatus.BOOKED,
             )
         self.is_free = False
+        self.ever_active = True
         db.session.add(appt)
         return appt
 
@@ -323,7 +344,7 @@ class Slot(db.Model,myModel):
 # --------------------------
 # Treatment
 # --------------------------
-class Treatment(db.Model,myModel):
+class Treatment(myModel):
     __tablename__ = "treatments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -376,3 +397,8 @@ def search_all(search_term):
                     continue
 
     return results
+
+def to_dict_any(obj, include_relationships=False):
+    if isinstance(obj, list):
+        return [item.to_dict(include_relationships) for item in obj]
+    return obj.to_dict(include_relationships)

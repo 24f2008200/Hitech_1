@@ -112,7 +112,7 @@ def admin_dashboard(tab_id):
         {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
         {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "Develop", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
-        {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
+        {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
                 "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
                 "Admin can add/update doctor and patient profiles.",
                 "Admin can view all upcoming and past appointments.",
@@ -141,137 +141,7 @@ def search():
     wheretosearch = request.form["fromWhere"]
     feature = request.form["field"]
     value = request.form["q"]
-    value_like = f"%{value}%"
-    results = []
-
-    if wheretosearch == "patients":
-        query = None
-        if feature == "name":
-            query = Patient.query.filter(or_(
-                Patient.name.like(value_like),
-                Patient.last_name.like(value_like),  # if you have last_name
-                Patient.status != "deleted"
-            ))
-        elif feature == "phone":
-            query = Patient.query.filter(Patient.phone.like(value_like), Patient.status != "deleted")
-        elif feature == "email":
-            query = Patient.query.filter(Patient.email.like(value_like), Patient.status != "deleted")
-        elif feature == "id":
-            query = Patient.query.filter(Patient.id.like(value_like), Patient.status != "deleted")
-        elif feature == "address":
-            query = Patient.query.filter(Patient.address.like(value_like), Patient.status != "deleted")
-
-        if query:
-            for p in query.all():
-                results.append({
-                    "type": "patient",
-                    "id": p.id,
-                    "P_name": f"{p.name} {getattr(p, 'last_name', '')}".strip(),
-                    "D_name":"",
-                    "phone": getattr(p, "phone", None),
-                    "email": getattr(p, "email", None),
-                    "address": getattr(p, "address", None),
-                    "slot":"",
-                    "date":""
-                    
-                })
-
-    elif wheretosearch == "doctors":
-        query = None
-        if feature == "name":
-            query = Doctor.query.filter(or_(
-                Doctor.name.like(value_like),
-                Doctor.last_name.like(value_like),
-                 Doctor.status != "deleted"
-            ))
-        elif feature == "phone":
-            query = Doctor.query.filter(Doctor.phone.like(value_like), Doctor.status != "deleted")
-        elif feature == "email":
-            query = Doctor.query.filter(Doctor.email.like(value_like), Doctor.status != "deleted")
-        elif feature == "id":
-            query = Doctor.query.filter(Doctor.id.like(value_like), Doctor.status != "deleted")
-        elif feature == "address":
-            query = Doctor.query.filter(Doctor.address.like(value_like), Doctor.status != "deleted")
-
-        if query:
-            for d in query.all():
-                results.append({
-                    "type": "doctor",
-                    "id": d.id,
-                    "P_name": "",
-                    "D_name": f"{d.name} {getattr(d, 'last_name', '')}".strip(),
-                    "phone": getattr(d, "phone", None),
-                    "email": getattr(d, "email", None),
-                    "address": getattr(d, "address", None),
-                    "slot":"",
-                    "date":""
-                })
-
-    elif wheretosearch == "appointments":
-        query = (Appointment.query
-         .join(Patient, Appointment.patient_id == Patient.id)
-         .join(Doctor, Appointment.doctor_id == Doctor.id))
-
-        if feature == "name":
-            query = query.filter(or_(
-                Patient.name.like(value_like),
-                Doctor.name.like(value_like),
-                Patient.last_name.like(value_like),
-                Doctor.last_name.like(value_like)
-            ))
-        elif feature == "phone":
-            query = query.filter(or_(
-                Patient.phone.like(value_like),
-                Doctor.phone.like(value_like)
-            ))
-        elif feature == "email":
-            query = query.filter(or_(
-                Patient.email.like(value_like),
-                Doctor.email.like(value_like)
-            ))
-        elif feature == "id":
-            query = query.filter(or_(
-                Patient.id.like(value_like),
-                Doctor.id.like(value_like),
-                Appointment.id.like(value_like)
-            ))
-        elif feature == "address":
-            query = query.filter(or_(
-                Patient.address.like(value_like),
-                Doctor.address.like(value_like)
-            ))
-        elif feature == "date":
-            query = query.join(Slot, Appointment.slot_id == Slot.id).filter(
-                Slot.date.like(value_like)
-            )
-    
-        for a in query.all():
-            print (a.slot.date ,a.slot.session if a.slot else "No slot")
-            results.append({
-                "type": "appointment",
-                "id": a.id,
-                "P_name": f"{a.patient.name} {getattr(a.patient, 'last_name', '')}".strip(),
-                "D_name": f"{a.doctor.name} {getattr(a.doctor, 'last_name', '')}".strip(),
-                "slot": getattr(a, "slot", None).session if getattr(a, "slot", None) else None,
-                "date": getattr(a, "slot", None).date.strftime("%Y-%m-%d") if getattr(a, "slot", None) else None,
-                "status": getattr(a, "status", None).value if getattr(a, "status", None) else None,
-                "phone": getattr(a.patient, "phone", None) or getattr(a.doctor, "phone", None),
-                "email": getattr(a.patient, "email", None) or getattr(a.doctor, "email", None),
-                "address": getattr(a.patient, "address", None) or getattr(a.doctor, "address", None),   
-            })
-    searchResults_columns = [
-        {"key": "id", "label": "ID"},
-        {"key": "D_name", "label": "Doctor"},
-        {"key": "P_name", "label": "Patient"},
-            {"key": "phone", "label": "Phone"},
-        {"key": "email", "label": "Email"},
-        {"key": "address", "label": "Address"},
-        {"key": "date", "label": "Date"},
-        {"key": "slot", "label": "Session"},
-        {"key": "status", "label": "Status"},
-
-        
-    ]
+    results, searchResults_columns = search_records(wheretosearch, feature, value)
     return render_template("search.html", title="Search Results", 
                            searchResults_columns=searchResults_columns, 
                            searchResults_rows=results)

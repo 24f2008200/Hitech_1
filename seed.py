@@ -5,18 +5,23 @@ from datetime import date, timedelta,datetime
 
 from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User,Sessions
 
+TEST = True
+
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database.sqlite3"
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database1.sqlite3" if TEST else "sqlite:///api_database.sqlite3"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
 
 fake = Faker()
 
-NO_OF_PATIENTS = 40
-NO_OF_DOCTORS = 10  
-NO_OF_APPOINTMENTS_PER_DOCTOR = 4
-NO_OF_PAST_DAYS = 30
-NO_OF_FUTURE_DAYS = 30
+
+
+
+NO_OF_PATIENTS = 4 if TEST else 40
+NO_OF_DOCTORS = 2 if TEST else 10
+NO_OF_APPOINTMENTS_PER_DOCTOR = 1 if TEST else 4
+NO_OF_PAST_DAYS = 1 if TEST else 30
+NO_OF_FUTURE_DAYS = 3 if TEST else 30
 START_DATE = date.today() - timedelta(days=NO_OF_PAST_DAYS)
 END_DATE = date.today() + timedelta(days=NO_OF_FUTURE_DAYS)
 
@@ -389,6 +394,7 @@ def seed_database():
 
 
         free_slots = [s for s in slots_by_doctor[doc.id] if s.available and s.is_free ]
+        random.shuffle(free_slots)
 
         
         app = 0
@@ -416,7 +422,8 @@ def seed_database():
             try:
                 slot.book(patient_id=id, reason=reason)
             except Exception as e:
-                continue
+                # continue
+                pass
             db.session.flush()
             app +=1
 

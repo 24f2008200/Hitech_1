@@ -2,7 +2,7 @@
 import calendar
 from flask import Blueprint, render_template, request, abort, url_for
 from flask_login import current_user , LoginManager
-from Mad1.package.routes import doctor
+from package.routes import doctor
 from models import *
 from package.routes.auth import *
 from package.routes.utils import *
@@ -130,24 +130,6 @@ def doctor_dashboard(tab_id=1):
     doctor  = current_user
     appointments = sorted(doctor.appointments, key=lambda a: a.slot.date)
     patients = [] # unique patients
-    #print (patients)
-    #return render_template("doctor_dashboard.html", doctor=doctor, appointments=appointments, patients=patients)
-    # appt_rows = []
-    # for a in appointments :
-    #     if a is not None:
-    #         appt_rows.append({
-    #             "ID": a.id,
-    #             "Patient": a.patient.name +" " +a.patient.last_name if a.patient is not None else "",
-    #             "Date": a.slot.date.strftime("%Y-%m-%d"),
-    #             "Time": a.slot.session,
-    #             "Status": a.status,
-    #             "Reason": a.reason or "—",
-    #             "Actions": [
-    #                 {"label": "Update", "url": url_for("doctor.update_appointment",  appointment_id=a.id), "color": "info"},
-    #                 {"label": "Close", "url": url_for("doctor.close_appointment",  appointment_id=a.id), "color": "success"},
-    #                 {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appointment_id=a.id), "color": "danger"},
-    #             ],
-    #         }) #"showUpdateForm(`{{ appt.id }}`, '{{ appt.patient.name }}', '{{ doctor.department.name  }}')"
     patient_rows = []
     if appointments is not None:
         for a in appointments:
@@ -175,7 +157,7 @@ def doctor_dashboard(tab_id=1):
         {"label": "My Patients", "columns": ["ID", "Patient","Date","Session","Status","Actions"], "rows": patient_rows},
         {"label": "All Appointments", "columns": ["ID", "Date","Session","Patient", "Reason", "Status","Actions"], "rows": appointments_rows},
                 {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
-        {"label": "ToDo", "page" : "dummy1.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
+        {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
                                                           "Doctor's dashboard must have the option to mark appointments as Completed or Cancelled.",
                                                           "Doctors can provide their availability for the next 7 days.",
                                                           "Doctors can update patient treatment history like provide diagnosis, treatment and prescriptions.",],
