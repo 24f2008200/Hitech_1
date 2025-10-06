@@ -72,7 +72,7 @@ def admin_dashboard(tab_id):
         {"key": "Date", "label": "Date"},
         {"key": "Session", "label": "Session"},
         {"key": "Department", "label": "Department"},
-        {"key": "Status", "label": "Status", "filterType": "select"},
+        {"key": "Status", "label": "Status"},
         {"key": "Actions", "label": "Actions", "type": "action"}
     ]
 
@@ -87,7 +87,7 @@ def admin_dashboard(tab_id):
             ],
         }
           for d in departments ] 
-    appointments_rows = get_appointment_rows(active=True)
+    appointments_rows = get_appointment_rows()
 
     total_doctors = db.session.query(Doctor).count()
     total_patients = db.session.query(Patient).count()
@@ -211,7 +211,7 @@ def department_details(dept_id):
             {"label": "Edit", "url": url_for("admin.edit_doctor", doctor_id=d.id), "color": "warning"},
             {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
             {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
-            {"label": "Back ", "url": url_for("admin.dashboard", tab_id= 2), "color": "info"},
+            {"label": "Back ", "url": url_for("admin.admin_dashboard", tab_id= 2), "color": "info"},
         ] if current_user.role == "admin" else [
             {"label": "Book Appointment", "url": url_for("doctor.doctor_availability", doctor_id=d.id), "color": "info"},
             {"label": "Back ", "url": url_for("patient.patient_dashboard", tab_id=3), "color": "info"},

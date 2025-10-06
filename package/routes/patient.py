@@ -60,6 +60,7 @@ def register():
     patient_form = {
         "action": add_url,
         "method": "POST",
+        "title": "Add New User",
         "fields": [
             {"label": "First Name", "name": "first_name", "type": "text",
             "required": True, "value": field_value(patient, "name")},
@@ -71,7 +72,7 @@ def register():
             "required": False, "value":field_value(patient, "dob")},
 
             {"label": "Email", "name": "email", "type": "email",
-            "required": True, "value":field_value(patient, "email")},
+            "required": True, "value":""},
 
             {"label": "Phone", "name": "phone", "type": "text",
             "value":field_value(patient, "phone")},
@@ -79,7 +80,7 @@ def register():
             {"label": "Address", "name": "address", "type": "textarea",
             "value":field_value(patient, "address")},
             
-            {"label": "Password", "name": "password", "type": "text",
+            {"label": "Password", "name": "password", "type": "password",
             "required": False, "value":""},
         ],
 

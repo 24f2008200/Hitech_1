@@ -129,7 +129,7 @@ class User(myModel,UserMixin):
     }
 
     def __init__(self, name, email, password, last_name=None, 
-                 dob=None, phone=None, address=None ,role ="user", **kwargs):
+                 dob=None, phone=None, address=None ,role ="patient", **kwargs):
         super().__init__(**kwargs)
         self.name = name
         self.email = email

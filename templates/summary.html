@@ -2,40 +2,165 @@
 {% block content %}
 {% set t  = tab.rows %}
 <div class="container mt-5">
-  <h2 class="mb-4">Admin Dashboard</h2>
+  <h2 class="mb-4 fw-semibold">Admin Dashboard</h2>
 
   <div class="row g-4">
     <!-- Doctors -->
-    <div class="col-md-4">
-      <div class="card text-white bg-primary shadow-lg h-100">
-        <div class="card-body text-center">
-          <h5 class="card-title">Doctors</h5>
-          <h2 class="display-5 fw-bold">{{ t.total_doctors }}</h2>
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 2)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #1e88e5, #1565c0);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Doctors</h5>
+            <h2 class="display-6 fw-bold">{{ t.total_doctors }}</h2>
+          </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <!-- Patients -->
-    <div class="col-md-4">
-      <div class="card text-white bg-success shadow-lg h-100">
-        <div class="card-body text-center">
-          <h5 class="card-title">Patients</h5>
-          <h2 class="display-5 fw-bold">{{ t.total_patients }}</h2>
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 3)}}" class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #2e7d32, #1b5e20);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Patients</h5>
+            <h2 class="display-6 fw-bold">{{ t.total_patients }}</h2>
+          </div>
         </div>
-      </div>
+      </a>
     </div>
 
     <!-- Appointments -->
-    <div class="col-md-4">
-      <div class="card text-dark bg-light shadow-lg h-100">
-        <div class="card-body text-center">
-          <h5 class="card-title">Appointments</h5>
-          <h2 class="display-5 fw-bold">{{ t.total_appointments }}</h2>
-          <p class="mb-1 text-success fw-semibold">Active: {{ t.active_appointments }}</p>
-          <p class="mb-0 text-secondary fw-semibold">Closed: {{ t.closed_appointments }}</p>
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 5)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #8e24aa, #6a1b9a);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Appointments</h5>
+            <h2 class="display-6 fw-bold">{{ t.total_appointments }}</h2>
+            <p class="mb-0 text-light small">Active: {{ t.active_appointments }}</p>
+            <p class="mb-0 text-light small">Closed: {{ t.closed_appointments }}</p>
+          </div>
         </div>
-      </div>
+      </a>
+    </div>
+
+    <!-- Departments -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 4)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #0097a7, #006064);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Departments</h5>
+            <h2 class="display-6 fw-bold">{{ t.total_departments }}</h2>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Staff -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 6)}} class="card-link">
+        <div class="card text-dark shadow-lg h-100 tile" style="background: linear-gradient(135deg, #ffeb3b, #fbc02d);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Staff Members</h5>
+            <h2 class="display-6 fw-bold">{{ t.total_staff }}</h2>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Beds -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 7)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #ef6c00, #e65100);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Beds Occupied</h5>
+            <h2 class="display-6 fw-bold">{{ t.beds_occupied }}</h2>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Revenue -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 8)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #d32f2f, #b71c1c);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Revenue</h5>
+            <h2 class="display-6 fw-bold">₹{{ t.total_revenue }}</h2>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Feedback -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 8)}}class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #00acc1, #00838f);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Feedback</h5>
+            <h2 class="display-6 fw-bold">{{ t.feedback_count }}</h2>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <!-- Alerts -->
+    <div class="col-md-4 col-lg-3">
+      <a href={{url_for("admin.admin_dashboard", tab_id= 8)}} class="card-link">
+        <div class="card text-white shadow-lg h-100 tile" style="background: linear-gradient(135deg, #455a64, #263238);">
+          <div class="card-body text-center">
+            <h5 class="card-title">Alerts</h5>
+            <h2 class="display-6 fw-bold">{{ t.alerts_today }}</h2>
+          </div>
+        </div>
+      </a>
     </div>
   </div>
 </div>
+
+<style>
+  .tile {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    border: none;
+    border-radius: 16px;
+  }
+
+  .tile:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  }
+
+  .card-body {
+    padding: 1.5rem 0.5rem;
+  }
+
+  h2, h5 {
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  .display-6 {
+    font-size: 2.2rem;
+  }
+
+  /* Make entire card clickable */
+  .card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+
+  .card-link:hover {
+    text-decoration: none;
+  }
+
+  .card-link:active, .card-link:focus {
+    outline: none;
+  }
+
+  .card-link .tile:hover {
+    cursor: pointer;
+  }
+</style>
+
+
+
 {% endblock %}
