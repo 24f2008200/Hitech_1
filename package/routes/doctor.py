@@ -264,7 +264,7 @@ def edit_availability():
         return redirect(home_url)
     except Exception as e:
         db.session.rollback()
-        flash(f"Error updating Department: {e}", "danger")
+        flash(f"Error Editing Availability: {e}", "danger")
         return redirect(edit_url)
 
     # return jsonify({"status": "success", "message": "Slot saved successfully"})

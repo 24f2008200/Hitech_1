@@ -85,7 +85,11 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
             "Date": a.slot.date.strftime("%Y-%m-%d"),
             "Session": a.slot.session,
             "Reason": a.reason,
+            "Diagnosis": a.treatment.diagnosis if a.treatment else "N/A",
+            "Prescription": a.treatment.prescription if a.treatment else "N/A",
             "Department": a.doctor.department.name if a.doctor.department else "N/A",
+            "Medicines": a.treatment.medicines if a.treatment else "N/A",
+            "Tests": a.treatment.tests if a.treatment else "N/A",
             "Status": a.status.value,  # BOOKED / CANCELLED / COMPLETED
             "Actions": [{"label":p["label"],"url":url_for(p["url"],appointment_id=a.id),"color":p["color"]} for p in actions
                 # {"label": "View", "url": url_for("patient.edit_appointment", appointment_id=a.id), "color": "warning"},

@@ -37,7 +37,7 @@ def register():
             flash("That  eEmail is in use.", "danger")
             return redirect(add_url)
 
-        patient = User(
+        patient = Patient(
             name=name,
             last_name=last_name,
             dob=dob,
@@ -108,7 +108,7 @@ def patient_dashboard(tab_id=1):
                     # {"label": "Close", "url": "doctor.close_appointment",  "color": "success"},
                     {"label": "Cancel", "url": "patient.delete_appointment", "color": "danger"},
                 ]
-    appt_rows = get_appointment_rows(pat_id=patient.id,active=True,actions=actions)
+    appt_rows = get_appointment_rows(pat_id=patient.id,actions=actions)
     appointments_cols = [
             {"key": "ID", "label": "ID"},
             {"key": "Doctor", "label": "Doctor"},
@@ -118,15 +118,17 @@ def patient_dashboard(tab_id=1):
             {"key": "Status", "label": "Status", "filterType": "select"},
             {"key": "Actions", "label": "Actions", "type": "action"}]
     
-
-    treat_rows=[]
-    for t in treatments:
-        treat_rows.append({
-            "ID":t.id,
-            "Date":t.appointment.slot.date,
-            "Doctor":t.appointment.doctor.name,
-            "Prescription":t.prescription,
-        })
+    treat_rows = [t for t in appt_rows if t["Status"] == "completed"]
+    appt_rows_old = [t for t in appt_rows if not(t["Status"] == "completed" or t["Status"] == "booked")]
+    appt_rows = [t for t in appt_rows if t["Status"] == "booked"]
+    # treat_rows=[]
+    # for t in treat:
+    #     treat_rows.append({
+    #         "ID":t.id,
+    #         "Date":t.appointment.slot.date,
+    #         "Doctor":t.appointment.doctor.name,
+    #         "Prescription":t.prescription,
+    #     })
     department_rows = []
     for d in departments:
         department_rows.append({
@@ -136,10 +138,25 @@ def patient_dashboard(tab_id=1):
                 {"label": "View", "url": url_for("admin.department_details", dept_id=d.id), "color": "warning"},
             ]
         })
+    doctors = Doctor.query.filter(Doctor.status != "deleted").all()
+    doctors_rows = []
+    for d in doctors:
+        doctors_rows.append({
+            "Doctors": d.name,
+            "Departments": d.department.name if d.department else "N/A",
+            "Speciality": d.speciality,
+            "Experience": d.experience,
+            "Action": [
+                {"label": "View", "url": url_for("doctor.doctor_availability", doctor_id=d.id), "color": "warning"},
+            ]
+        })
     tabs = [
-        {"label": "My Appointments", "columns": ["ID", "Doctor", "Date", "Session", "Status","Actions"], "rows": appt_rows},
-        {"label": "My Treatments", "columns": ["ID", "Date", "Doctor", "Prescription"],"rows": treat_rows},
+        {"label": "Open Appointments", "columns": ["ID", "Doctor", "Date", "Session", "Reason","Status","Actions"], "rows": appt_rows},
+        {"label": "My Treatments", "columns": ["ID", "Doctor", "Date", "Session", "Reason","Tests","Diagnosis",
+                                               "Prescription","Medicines"],"rows": treat_rows},
         {"label": "Departments", "columns":["Departments", "Action"],"rows": department_rows},
+        {"label": "Doctors", "columns":["Doctors","Departments", "Speciality", "Experience", "Action"],"rows": doctors_rows},
+        {"label": "Other Appointments", "columns": ["ID", "Doctor", "Date", "Session", "Reason","Status",], "rows": appt_rows_old},
             {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Patients can register and login themselves on the app.",
                                                           "Patients’ Dashboard must display all available specialization/departments",
@@ -173,7 +190,7 @@ def appointments_book(doctor_id):
     spot = Slot.query.filter_by(
         doctor_id=doctor_id, date=selected_date, session=session
     ).first()
-
+    print(spot)
     if not spot or not spot.available:
         flash("Selected slot is not available.", "danger")
         return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
@@ -184,13 +201,14 @@ def appointments_book(doctor_id):
 
 
     try:
+        print(patient_id)
         appt =spot.book(patient_id)
         db.session.commit()
         flash("Appointment booked successfully!", "success")
         return redirect(url_for("doctor.doctor_availability", doctor_id=doctor_id))
     except Exception as e:
         db.session.rollback()
-        flash(f"Error updating Department: {e}", "danger")
+        flash(f"Error Booking Appointment: {e}", "danger")
         return redirect(add_url)
 
     
@@ -279,7 +297,7 @@ def patient_history(patient_id):
                            page=page,
                            total_pages=total_pages,
                            patient_id=patient_id,
-                           return_address =  url_for('doctor.doctor_dashboard', tab_id=2)
+                           return_address =  url_for('patient.patient_dashboard', tab_id=1)
                            )
 
 

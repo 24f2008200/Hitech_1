@@ -93,10 +93,13 @@
 
   /* Responsive tweaks */
   @media (max-width: 768px) {
-    th, td {
+
+    th,
+    td {
       font-size: 0.9rem;
       padding: 10px;
     }
+
     .scroll-table {
       width: 95%;
     }
@@ -113,23 +116,30 @@
       </tr>
     </thead>
     <tbody>
+      {% if rows|length != 0 %}
       {% for row in rows %}
       <tr>
         {% for col in columns %}
         <td>
           {% if col in row %}
-            {% if row[col] is string %}
-              {{ row[col] }}
-            {% elif row[col] is sequence %}
-              {{ render_actions(row[col]) }}
-            {% else %}
-              {{ row[col] | safe }}
-            {% endif %}
+          {% if row[col] is string %}
+          {{ row[col] }}
+          {% elif row[col] is sequence %}
+          {{ render_actions(row[col]) }}
+          {% else %}
+          {{ row[col] | safe }}
+          {% endif %}
           {% endif %}
         </td>
         {% endfor %}
       </tr>
       {% endfor %}
+      {% else %}
+      <tr>
+        <td colspan="{{ columns|length }}">No results found</td>
+      </tr>
+      {% endif %}
+
     </tbody>
   </table>
 </div>
@@ -170,6 +180,7 @@
       </tr>
     </thead>
     <tbody>
+      {% if rows|length != 0 %}
       {% for row in rows %}
       <tr data-row-id="{{ row.id }}">
         {% for col in columns %}
@@ -196,6 +207,11 @@
         {% endfor %}
       </tr>
       {% endfor %}
+      {% else %}
+      <tr>
+        <td colspan="{{ columns|length }}">No results found</td>
+      </tr>
+      {% endif %}
     </tbody>
   </table>
 </div>
@@ -273,41 +289,41 @@
 
 {% macro render_tabs(title, tabs, active_index) %}
 
-  {% if tabs|length > 1 %}
-  <div class="container-fluid"></div>
-  <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
-    {% for tab in tabs %}
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if loop.index == active_index %}active{% endif %}" id="tab-{{ loop.index }}"
-        data-bs-toggle="tab" data-bs-target="#content-{{ loop.index }}" type="button" role="tab">
-        {{ tab.label }}
-      </button>
-    </li>
-    {% endfor %}
-  </ul>
-  </div> 
-  {% endif %}
+{% if tabs|length > 1 %}
+<div class="container-fluid"></div>
+<ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+  {% for tab in tabs %}
+  <li class="nav-item" role="presentation">
+    <button class="nav-link {% if loop.index == active_index %}active{% endif %}" id="tab-{{ loop.index }}"
+      data-bs-toggle="tab" data-bs-target="#content-{{ loop.index }}" type="button" role="tab">
+      {{ tab.label }}
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+</div>
+{% endif %}
 
 
-  <!-- Tab Content -->
-  <div class="tab-content mt-3">
-    {% for tab in tabs %}
-    <div class="tab-pane fade {% if loop.index == active_index %}show active{% endif %}" id="content-{{ loop.index }}">
-      {% if tab.filterTable is defined and tab.columns %}
-      {{ render_filter_table(tab.columns, tab.rows, tab.filterTable) }}
-      {% elif tab.columns is defined and tab.columns %}
-      {{ render_table(tab.columns, tab.rows) }}
-      {% elif tab.page is defined %}
-      {% include tab.page %}
-      {% else %}
-      <p>No content available</p>
-      {% endif %}
-
-    </div>
-    {% endfor %}
-    
+<!-- Tab Content -->
+<div class="tab-content mt-3">
+  {% for tab in tabs %}
+  <div class="tab-pane fade {% if loop.index == active_index %}show active{% endif %}" id="content-{{ loop.index }}">
+    {% if tab.filterTable is defined and tab.columns %}
+    {{ render_filter_table(tab.columns, tab.rows, tab.filterTable) }}
+    {% elif tab.columns is defined and tab.columns %}
+    {{ render_table(tab.columns, tab.rows) }}
+    {% elif tab.page is defined %}
+    {% include tab.page %}
+    {% else %}
+    <p>No content available</p>
+    {% endif %}
 
   </div>
+  {% endfor %}
+
+
+</div>
 
 
 {% endmacro %}
@@ -442,54 +458,54 @@
   <form id="customForm" method="{{ form.method }}" action="{{ form.action }}">
     <div class="form-grid">
       {% for field in form.fields %}
-        {% if field.type == "password" %}
-          <!-- Password -->
-          <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
-          <input id="{{ field.name }}" type="password" name="{{ field.name }}" class="form-control password-field"
-            {% if field.required %}required{% endif %}>
+      {% if field.type == "password" %}
+      <!-- Password -->
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <input id="{{ field.name }}" type="password" name="{{ field.name }}" class="form-control password-field" {% if
+        field.required %}required{% endif %}>
 
-          <!-- Confirm Password -->
-          <label class="form-label" for="{{ field.name }}_confirm">Confirm {{ field.label }}</label>
-          <input id="{{ field.name }}_confirm" type="password" name="{{ field.name }}_confirm"
-            class="form-control password-confirm" {% if field.required %}required{% endif %}>
-          
-          <!-- Message Row -->
-          <div class="password-message" id="{{ field.name }}_msg"></div>
-          <div></div>
+      <!-- Confirm Password -->
+      <label class="form-label" for="{{ field.name }}_confirm">Confirm {{ field.label }}</label>
+      <input id="{{ field.name }}_confirm" type="password" name="{{ field.name }}_confirm"
+        class="form-control password-confirm" {% if field.required %}required{% endif %}>
 
-        {% elif field.type == "select" %}
-          <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
-          <select id="{{ field.name }}" name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif %}>
-            {% for value, text in field.options %}
-              <option value="{{ value }}" {% if field.value is defined and field.value==value %}selected{% endif %}>
-                {{ text }}
-              </option>
-            {% endfor %}
-          </select>
-        {% elif field.type == "textarea" %}
-          <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
-          <textarea id="{{ field.name }}" name="{{ field.name }}" class="form-control" rows="2"
-            {% if field.required %}required{% endif %}>{{ field.value or '' }}</textarea>
-        {% elif field.type == "date" %}
-          <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
-          <input id="{{ field.name }}" type="date" name="{{ field.name }}" class="form-control"
-            {% if field.required %}required{% endif %} value="{{ field.value or '' }}">
-        {% else %}
-          <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
-          <input id="{{ field.name }}" type="{{ field.type }}" name="{{ field.name }}" class="form-control"
-            {% if field.required %}required{% endif %}
-            {% if field.value is defined %}value="{{ field.value or '' }}"{% endif %}
-            {% if field.noedit %}disabled{% endif %}>
-        {% endif %}
+      <!-- Message Row -->
+      <div class="password-message" id="{{ field.name }}_msg"></div>
+      <div></div>
+
+      {% elif field.type == "select" %}
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <select id="{{ field.name }}" name="{{ field.name }}" class="form-control" {% if field.required %}required{% endif
+        %}>
+        {% for value, text in field.options %}
+        <option value="{{ value }}" {% if field.value is defined and field.value==value %}selected{% endif %}>
+          {{ text }}
+        </option>
+        {% endfor %}
+      </select>
+      {% elif field.type == "textarea" %}
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <textarea id="{{ field.name }}" name="{{ field.name }}" class="form-control" rows="2" {% if field.required
+        %}required{% endif %}>{{ field.value or '' }}</textarea>
+      {% elif field.type == "date" %}
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <input id="{{ field.name }}" type="date" name="{{ field.name }}" class="form-control" {% if field.required
+        %}required{% endif %} value="{{ field.value or '' }}">
+      {% else %}
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <input id="{{ field.name }}" type="{{ field.type }}" name="{{ field.name }}" class="form-control" {% if
+        field.required %}required{% endif %} {% if field.value is defined %}value="{{ field.value or '' }}" {% endif %}
+        {% if field.noedit %}disabled{% endif %}>
+      {% endif %}
       {% endfor %}
     </div>
 
     <div class="form-actions">
       <button type="submit" class="btn btn-success">{{ form.submit_label }}</button>
       {% if form.other_buttons %}
-        {% for button in form.other_buttons %}
-          <a href="{{ button.url }}" class="btn btn-secondary">{{ button.label }}</a>
-        {% endfor %}
+      {% for button in form.other_buttons %}
+      <a href="{{ button.url }}" class="btn btn-secondary">{{ button.label }}</a>
+      {% endfor %}
       {% endif %}
     </div>
   </form>
@@ -497,7 +513,7 @@
 
 <script>
   // Password confirmation logic
-  document.addEventListener("DOMContentLoaded", function() {
+  document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("customForm");
     const passwords = form.querySelectorAll(".password-field");
 
@@ -532,4 +548,3 @@
   });
 </script>
 {% endmacro %}
-

@@ -272,8 +272,13 @@ def search(wheretosearch=None, feature=None, value=None):
 
     return fromWhere + " " + field + " " + query
 
+def repair():
+    query = User.query.filter(User.id == 52).all()
+    for p in query:
+        db.session.delete(p)
+    db.session.commit()
 
 
 if __name__ == "__main__": 
     with app.app_context():
-        test()
+        repair()

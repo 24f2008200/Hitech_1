@@ -284,6 +284,7 @@ class Slot(myModel):
     #     return self.available and not self.is_busy
 
     def book(self, patient_id, reason=None):
+        print(patient_id)
         if not self.available:
             raise ValueError("This slot is not available.")
         if not self.is_free:

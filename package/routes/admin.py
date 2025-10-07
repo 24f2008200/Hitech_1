@@ -174,7 +174,7 @@ def add_department():
             return redirect(home_url)
         except Exception as e:
             db.session.rollback()
-            flash(f"Error updating Department: {e}", "danger")
+            flash(f"Error Adding Department: {e}", "danger")
             return redirect(add_url)
 
     department_form = {
