@@ -41,7 +41,7 @@ def admin_dashboard(tab_id):
                 {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
             ],
         })
-
+    doctor_cols =["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"]
     patients = Patient.query.filter(Patient.status != "deleted").all()
     patient_rows = [{
         "ID": p.id, 
@@ -87,6 +87,7 @@ def admin_dashboard(tab_id):
             ],
         }
           for d in departments ] 
+    department_cols =["Name", "Description","Doctors","Actions"]
     appointments_rows = get_appointment_rows()
 
     total_doctors = db.session.query(Doctor).count()
@@ -101,18 +102,7 @@ def admin_dashboard(tab_id):
         status=AppointmentStatus.COMPLETED
     ).count()
 
-    tabs = [
-        
-        {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
-                "total_appointments":total_appointments,"active_appointments":active_appointments,
-                "closed_appointments":closed_appointments}},
-        {"label": "Doctors", "columns": ["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"], "rows": doctor_rows},
-        {"label": "Patients", "filterTable": "patients", "columns": patient_columns, "rows": patient_rows},
-        {"label": "Departments", "columns": ["Name", "Description","Doctors","Actions"], "rows": department_rows},
-        {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
-        {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
-        {"label": "Develop", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
-        {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Admin dashboard must display total number of doctors, patients, and appointments.",
+    dummy2_rows =["Admin dashboard must display total number of doctors, patients, and appointments.",
                 "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
                 "Admin can add/update doctor and patient profiles.",
                 "Admin can view all upcoming and past appointments.",
@@ -126,9 +116,21 @@ def admin_dashboard(tab_id):
                 "Implement backend validation within your app's controllers.",
                 "Provide styling and aesthetics to your application by creating a beautiful and responsive front end using simple CSS or Bootstrap (No other styling library is allowed.)",
                 "Incorporate a proper login system to prevent unauthorized access to the app using Flask extensions like flask_login, flask_security etc.",
-                "Any additional feature you feel is appropriate for the application"],
-                "extra":["OK"]},
+                "Any additional feature you feel is appropriate for the application"]
+                
 
+    tabs = [
+        
+        {"label": "Summary", "page" : "summary.html" ,"rows": {"total_doctors":total_doctors, "total_patients":total_patients,
+                "total_appointments":total_appointments,"active_appointments":active_appointments,
+                "closed_appointments":closed_appointments}},
+        {"label": "Doctors", "columns": doctor_cols, "rows": doctor_rows},
+        {"label": "Patients", "filterTable": "patients", "columns": patient_columns, "rows": patient_rows},
+        {"label": "Departments", "columns": department_cols, "rows": department_rows},
+        {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
+        {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "Develop", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "ToDo", "page" : "dummy2.html" ,"rows":dummy2_rows,"extra":["OK"]},
     ]
     
 
@@ -136,7 +138,7 @@ def admin_dashboard(tab_id):
     # return render_template("dashboard_base.html", title=None, tabs=tabs,active_tab="availablilty")
 
 @admin_bp.route("/query", methods=["GET", "POST"])
-@admin_required
+@login_required
 def search():
     wheretosearch = request.form["fromWhere"]
     feature = request.form["field"]

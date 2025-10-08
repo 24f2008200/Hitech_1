@@ -11,12 +11,6 @@ from sqlalchemy.orm import Query
 from sqlalchemy.orm import aliased
 
 
-
-
-
-
-
-
 db = SQLAlchemy()
 
     
@@ -37,18 +31,81 @@ class Sessions(enum.Enum):
     S7 = "7P"
     S8 = "8P"
 
+# Patient:
+# {
+#  'id'               :2,			
+#  'name'             : 'Kavya',			
+#  'last_name'        : 'Desai',			
+#  'dob'              : datetime.date(1971,5,9),			
+#  'email'            : 'patient0@example.com',			
+#  'phone'            : '001-226-991-5605',			
+#  'address'          : 'Golf Course Road,			
+#  'role'             : 'patient',			
+#  'password'         : 'scrypt,			
+#  'status'           : 'blacklisted',			
+#  'type'             : 'patient',			
+#  'medical_history'  : None
+#  },			
 
 
+# Doctor:
+# {'id'              :42,	
+#  'name'            : 'Dr. Shreya',	
+#  'last_name'       : 'Das',	
+#  'dob'             : datetime.date(1985,	
+#  'email'           : 'doctor0@example.com',	
+#  'phone'           : '001-502-965-2313x787',	
+#  'address'         : '5th Cross Road,	
+#  'role'            : 'doctor',	
+#  'password_hash'   : 'scrypt,	
+#  'status'          : 'active',	
+#  'type'            : 'doctor',	
+#  'department_id'   :2,	
+#  'license_number'  : None	
+#  'experience'      :15	
+#  'speciality'      : 'Expert in managing childhood growth and',    
+#  },	
+
+
+# Appointment:
+
+# {'id'          :1,	
+#  'patient_id'  :21,	
+#  'slot_id'     :330,	
+#  'doctor_id'   :42,	
+#  'status'      : <AppointmentStatus.BOOKED,	
+#  'reason'      : 'Chest tightness Cough with phlegm'},
+# }	
+
+# Slot:
+# {'id'           :1,	
+#  'doctor_id'    :42,	
+#  'date'         : datetime.date(2025,	
+#  'session'      : '8A',	
+#  'ever_active'  : False,	
+#  'available'    : True,	
+#  'is_free'      : True},	
+#  'status'          : 'active',	
+#  'type'            : 'doctor',	
+#  'department_id'   :2,	
+#  'license_number'  : None	
+#  'experience'      :15	
+#  'speciality'      : 'Expert in managing childhood growth and	,
+#  },
+
+# Treatment:
+# {'id'              :1,			
+#  'appointment_id'  :2,			
+#  'diagnosis'       : 'Contact dermatitis',			
+#  'prescription'    : 'Insulin Aspart 2 tablets TDS for Until recovery',			
+#  'notes'           : 'True five plant reality number much.',			
+#  'performed_at'    : datetime.datetime(2025,			
+# }
 
 class myModel(db.Model):
     __abstract__ = True
 
     def to_dict(self, include_relationships=False, seen=None, depth=1):
-        """
-        Convert SQLAlchemy model to dict safely.
-        include_relationships=True -> include related objects up to 'depth' levels.
-        depth=0 -> no recursion beyond this object.
-        """
         if seen is None:
             seen = set()
 
@@ -58,46 +115,48 @@ class myModel(db.Model):
         seen.add(identity)
 
         result = {}
+        mapper = self.__class__.__mapper__
 
-        # Basic columns
-        for column in self.__table__.columns:
-            value = getattr(self, column.name)
-            if isinstance(value, datetime):
-                value = value.strftime("%Y-%m-%d")
-            elif isinstance(value, enum.Enum):
-                value = value.value
-            result[column.name] = value
+        for column in mapper.columns:
+            result[column.key] = getattr(self, column.key)
 
-        # Relationships
         if include_relationships and depth > 0:
-            for rel in self.__mapper__.relationships:
-                related_value = getattr(self, rel.key)
-
-                if related_value is None:
-                    result[rel.key] = None
-                    continue
-
-                # One-to-many
-                if isinstance(related_value, list):
-                    if rel.mapper.class_.__name__ == "Slot":
-                        related_value = [
-                            x for x in related_value if getattr(x, "ever_active", False)
+            for rel in mapper.relationships:
+                value = getattr(self, rel.key)
+                if value is not None:
+                    if rel.uselist:
+                        result[rel.key] = [
+                            obj.to_dict(True, seen, depth - 1) for obj in value
                         ]
-
-                    # Recursive only if depth > 1
-                    result[rel.key] = [
-                        x.to_dict(True, seen, depth=depth - 1) for x in related_value
-                    ]
-
-                # Many-to-one / one-to-one
-                else:
-                    # Optional filter: ignore inactive Slot
-                    if rel.mapper.class_.__name__ == "Slot" and not getattr(related_value, "ever_active", False):
-                        result[rel.key] = None
                     else:
-                        result[rel.key] = related_value.to_dict(True, seen, depth=depth - 1)
+                        result[rel.key] = value.to_dict(True, seen, depth - 1)
 
         return result
+
+    # ---------------------------------------
+    @classmethod
+    def from_dict(cls, data, session=None):
+
+        subtype = data.get("type")
+        if subtype and subtype != cls.__mapper_args__.get("polymorphic_identity"):
+            for subclass in cls.__subclasses__():
+                if hasattr(subclass, "__mapper_args__"):
+                    if subclass.__mapper_args__.get("polymorphic_identity") == subtype:
+                        return subclass.from_dict(data, session=session)
+
+        obj = cls()
+        mapper = cls.__mapper__
+
+        # Only fill columns (ignore relationships)
+        for column in mapper.columns:
+            key = column.key
+            if key in data:
+                setattr(obj, key, data[key])
+
+        if session:
+            session.add(obj)
+
+        return obj
 
 
     
@@ -284,7 +343,6 @@ class Slot(myModel):
     #     return self.available and not self.is_busy
 
     def book(self, patient_id, reason=None):
-        print(patient_id)
         if not self.available:
             raise ValueError("This slot is not available.")
         if not self.is_free:
@@ -360,46 +418,99 @@ class Treatment(myModel):
     appointment = db.relationship("Appointment", back_populates="treatment")
 
 
-def search_all(search_term):
-    """
-    Search across all tables and text-convertible columns in the SQLAlchemy db.
-    Returns a list of dicts with table, column, row_id, and matched_value.
-    """
-
-    results = []
-    inspector = inspect(db.engine)
-
-    # Get all table names
-    tables = inspector.get_table_names()
-
-    with db.engine.connect() as conn:
-        for table in tables:            # Get all column names
-            columns = [col["name"] for col in inspector.get_columns(table)]
-
-            for col in columns:
-                try:
-                    query = text(f"""
-                        SELECT rowid as id, {col} as value
-                        FROM {table}
-                        WHERE CAST({col} AS TEXT) LIKE :term
-                    """)
-
-                    rows = conn.execute(query, {"term": f"%{search_term}%"}).fetchall()
-
-                    for row in rows:
-                        results.append({
-                            "table": table,
-                            "column": col,
-                            "row_id": row.id,
-                            "matched_value": row.value
-                        })
-                except SQLAlchemyError:
-                        # Skip columns that can't be searched
-                    continue
-
-    return results
-
 def to_dict_any(obj, include_relationships=False):
     if isinstance(obj, list):
         return [item.to_dict(include_relationships) for item in obj]
     return obj.to_dict(include_relationships)
+
+from sqlalchemy import inspect, text
+from sqlalchemy.exc import SQLAlchemyError
+
+def search_all(search_term, table=None):
+    """
+    Search across all tables (or a specified one) for the search_term.
+    Includes joined 'users' data for inherited tables (patients, doctors, etc.)
+    and returns ALL matches.
+    """
+    results = []
+    inspector = inspect(db.engine)
+    all_tables = inspector.get_table_names()
+
+    # Normalize table argument
+    if table is None:
+        tables_to_search = all_tables
+    elif isinstance(table, str):
+        tables_to_search = [table] if table in all_tables else []
+    elif isinstance(table, (list, tuple, set)):
+        tables_to_search = [t for t in table if t in all_tables]
+    else:
+        raise ValueError("table must be a string, list, or None")
+
+    if not tables_to_search:
+        print("⚠️ No valid tables found.")
+        return results
+
+    search_term_like = f"%{search_term}%"
+
+    with db.engine.connect() as conn:
+        for table_name in tables_to_search:
+            columns = [col["name"] for col in inspector.get_columns(table_name)]
+            fks = inspector.get_foreign_keys(table_name)
+            fk_to_user = next((fk for fk in fks if fk["referred_table"] == "users"), None)
+
+            # ✅ 1. Search in joined 'users' table if applicable
+            if fk_to_user:
+                user_cols = [col["name"] for col in inspector.get_columns("users")]
+                for user_col in user_cols:
+                    try:
+                        query = text(f"""
+                            SELECT t.id AS id, u.{user_col} AS value
+                            FROM {table_name} t
+                            JOIN users u ON t.{fk_to_user['constrained_columns'][0]} = u.id
+                            WHERE CAST(u.{user_col} AS TEXT) LIKE :term
+                        """)
+                        rows = conn.execute(query, {"term": search_term_like}).fetchall()
+
+                        for row in rows:
+                            if row.value:  # skip nulls
+                                results.append({
+                                    "table": table_name,
+                                    "column": f"users.{user_col}",
+                                    "row_id": row.id,
+                                    "matched_value": row.value
+                                })
+                    except SQLAlchemyError:
+                        continue
+
+            # ✅ 2. Search within this table itself
+            for col in columns:
+                try:
+                    query = text(f"""
+                        SELECT id, {col} AS value
+                        FROM {table_name}
+                        WHERE CAST({col} AS TEXT) LIKE :term
+                    """)
+                    rows = conn.execute(query, {"term": search_term_like}).fetchall()
+
+                    for row in rows:
+                        if row.value:
+                            results.append({
+                                "table": table_name,
+                                "column": col,
+                                "row_id": row.id,
+                                "matched_value": row.value
+                            })
+                except SQLAlchemyError:
+                    # Some columns may not be searchable (e.g., binary, JSON)
+                    continue
+
+    # ✅ Deduplicate (optional) while keeping all distinct matches
+    seen = set()
+    unique_results = []
+    for r in results:
+        key = (r["table"], r["column"], r["row_id"], r["matched_value"])
+        if key not in seen:
+            seen.add(key)
+            unique_results.append(r)
+
+    return unique_results

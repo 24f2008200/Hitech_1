@@ -215,14 +215,16 @@
     </tbody>
   </table>
 </div>
-<script>
 
+<script>
   enableTableFilters('{{ table_id }}', {
     onActionClick: (action, rowId) => {
       console.log("Custom handler →", action, "on row", rowId);
     }
   });
+
   console.log("Filters enabled for table: {{ table_id }}");
+
   function enableTableFilters(tableId, options = {}) {
     const table = document.getElementById(tableId);
     if (!table) return;
@@ -252,11 +254,16 @@
       input.addEventListener("change", applyFilters);
     });
 
+    // ✅ initial visible row count sent to parent
+    sendVisibleCount();
+
     function applyFilters() {
       const filterValues = {};
       filters.forEach(f => {
         filterValues[f.dataset.key] = f.value.toLowerCase();
       });
+
+      let visibleCount = 0; // count visible rows
 
       rows.forEach(row => {
         const cells = row.querySelectorAll("td");
@@ -280,10 +287,26 @@
         });
 
         row.style.display = show ? "" : "none";
+        if (show) visibleCount++;
       });
+
+      sendVisibleCount(visibleCount);
+    }
+
+    // ✅ helper to post visible row count to parent
+    function sendVisibleCount(countOverride = null) {
+      const count = countOverride ?? rows.length;
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          { type: "visibleRowCount", count: count },
+          "*"
+        );
+      }
+      console.log(`Visible rows: ${count}`);
     }
   }
 </script>
+
 {% endmacro %}
 
 
@@ -314,7 +337,7 @@
     {% elif tab.columns is defined and tab.columns %}
     {{ render_table(tab.columns, tab.rows) }}
     {% elif tab.page is defined %}
-    {% include tab.page %}
+    {% include tab.page with context %}
     {% else %}
     <p>No content available</p>
     {% endif %}

@@ -156,7 +156,7 @@ def doctor_dashboard(tab_id=1):
         {"label": "Upcomming Appointments", "columns": ["ID", "Patient", "Date", "Session", "Reason", "Actions"], "rows": appointments_rows},
         {"label": "My Patients", "columns": ["ID", "Patient","Date","Session","Status","Actions"], "rows": patient_rows},
         {"label": "All Appointments", "columns": ["ID", "Date","Session","Patient", "Reason", "Status","Actions"], "rows": appointments_rows},
-                {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+                {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
                                                           "Doctor's dashboard must have the option to mark appointments as Completed or Cancelled.",
                                                           "Doctors can provide their availability for the next 7 days.",

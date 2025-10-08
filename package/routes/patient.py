@@ -157,7 +157,7 @@ def patient_dashboard(tab_id=1):
         {"label": "Departments", "columns":["Departments", "Action"],"rows": department_rows},
         {"label": "Doctors", "columns":["Doctors","Departments", "Speciality", "Experience", "Action"],"rows": doctors_rows},
         {"label": "Other Appointments", "columns": ["ID", "Doctor", "Date", "Session", "Reason","Status",], "rows": appt_rows_old},
-            {"label": "Search", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
+            {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Patients can register and login themselves on the app.",
                                                           "Patients’ Dashboard must display all available specialization/departments",
                                                           "Patients’ Dashboard must display availability of doctors for the coming 7 days (1 week) and patients can read doctors profiles.",
@@ -201,7 +201,6 @@ def appointments_book(doctor_id):
 
 
     try:
-        print(patient_id)
         appt =spot.book(patient_id)
         db.session.commit()
         flash("Appointment booked successfully!", "success")

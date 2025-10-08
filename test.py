@@ -278,7 +278,10 @@ def repair():
         db.session.delete(p)
     db.session.commit()
 
-
+def define(obj):
+    s =myModel.to_dict(obj)
+    print (s)
 if __name__ == "__main__": 
     with app.app_context():
-        repair()
+        patient = search_all("Shreya", table=None)
+        print(patient)
