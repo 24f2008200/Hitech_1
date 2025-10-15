@@ -5,7 +5,7 @@ from datetime import date, timedelta,datetime
 
 from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User,Sessions
 
-TEST = False
+TEST = True
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///api_database1.sqlite3" if TEST else "sqlite:///api_database.sqlite3"

@@ -102,7 +102,11 @@ def admin_dashboard(tab_id):
         status=AppointmentStatus.COMPLETED
     ).count()
 
-    dummy2_rows =["Admin dashboard must display total number of doctors, patients, and appointments.",
+    dummy2_rows =[
+                "For example, if an admin blacklists a user, the appointments should be appropriately managed.",
+                "Yes, admin can only blacklist or whitelist the Patient , admin cannot add a new Patient.",
+                "The above from discourse shrikrishna",
+                "Admin dashboard must display total number of doctors, patients, and appointments.",
                 "Admin should pre-exist in the app i.e. it must be created programmatically after the creation of the database. [No admin registration allowed]",
                 "Admin can add/update doctor and patient profiles.",
                 "Admin can view all upcoming and past appointments.",
