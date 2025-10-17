@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
@@ -104,6 +104,9 @@ class Sessions(enum.Enum):
 
 class myModel(db.Model):
     __abstract__ = True
+    created_at = db.Column(db.DateTime(timezone = True), default= lambda : datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone = True), default= lambda : datetime.now(timezone.utc),onupdate= lambda : datetime.now(timezone.utc))
+
 
     def to_dict(self, include_relationships=False, seen=None, depth=1):
         if seen is None:
@@ -182,10 +185,10 @@ class User(myModel,UserMixin):
 
     type = db.Column(db.String(50))  # discriminator column
 
-    __mapper_args__ = {
-        "polymorphic_identity": "user",
-        "polymorphic_on": type,
-    }
+    # __mapper_args__ = {
+    #     "polymorphic_identity": "user",
+    #     "polymorphic_on": type,
+    # }
 
     def __init__(self, name, email, password, last_name=None, 
                  dob=None, phone=None, address=None ,role ="patient", **kwargs):
@@ -206,19 +209,19 @@ class User(myModel,UserMixin):
         return check_password_hash(self.password_hash, plain_password)
 
 
-# --------------------------
-# Admin
-# --------------------------
-class Admin(User):
-    __tablename__ = "admins"
+# # --------------------------
+# # Admin
+# # --------------------------
+# class Admin(User):
+#     __tablename__ = "admins"
 
-    id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+#     id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
 
-    __mapper_args__ = {
-        "polymorphic_identity": "admin",
-    }
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+#     __mapper_args__ = {
+#         "polymorphic_identity": "admin",
+#     }
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
 
 
 # --------------------------
@@ -416,6 +419,7 @@ class Treatment(myModel):
     tests = db.Column(db.Text)
     medicines = db.Column(db.Text)
     appointment = db.relationship("Appointment", back_populates="treatment")
+    consultation_fee = db.Column(db.Integer ,default = 0)
 
 
 def to_dict_any(obj, include_relationships=False):

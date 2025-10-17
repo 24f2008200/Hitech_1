@@ -1,7 +1,7 @@
 import os
 import calendar
 from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
-from models import db,Admin ,  Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Availability
+from models import db, Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Availability
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token
 from models import AppointmentStatus
@@ -43,7 +43,7 @@ with app.app_context():
 
     # 51 Admins
     for i in range(2):
-        admin = Admin(
+        admin = User(
             name=fake.first_name(),
             last_name=fake.last_name(),
             email=f"admin{i}@example.com",

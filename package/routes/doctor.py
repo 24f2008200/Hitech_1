@@ -216,6 +216,9 @@ def update_history():
     diagnosis = request.form.get("diagnosis")
     prescription = request.form.get("prescription")
     medicines = request.form.get("medicines")
+    notes = request.form.get("notes")
+    consultation_fee = int(request.form.get("consultation_fee"))
+
 
     # Create Treatment entry linked to appointment
     appointment = Appointment.query.get_or_404(appointment_id)
@@ -226,7 +229,8 @@ def update_history():
         visit_type =visit_type,
         tests=test_done,
         medicines= medicines,
-        notes=f"VisitType: {visit_type}, Test: {test_done}, Medicines: {medicines}"
+        notes= notes,
+        consultation_fee = consultation_fee
     )
     db.session.add(treatment)
     db.session.commit()
@@ -345,6 +349,9 @@ def update_appointment(appointment_id):
 
             {"label": "Notes", "name": "notes", "type": "textarea",
             "value":field_value(treatment, "notes")},
+
+            {"label": "consultation_fee", "name": "consultation_fee", "type": "number",
+            "value":field_value(treatment, "consultation_fee")},
         ],
 
         "other_buttons" :[{"label" :"Back" ,"url": home_url}],
@@ -361,6 +368,8 @@ def update_appointment(appointment_id):
         prescription = request.form.get("prescription")
         medicines = request.form.get("medicines")   
         notes = request.form.get("notes")
+        consultation_fee = int(request.form.get("consultation_fee"))
+
 
         if treatment:
             treatment.visit_type = visit_type
@@ -369,6 +378,7 @@ def update_appointment(appointment_id):
             treatment.prescription = prescription
             treatment.medicines = medicines
             treatment.notes = notes
+            treatment.consultation_fee=consultation_fee
             db.session.commit()
         else:
             treatment = Treatment(
@@ -378,7 +388,8 @@ def update_appointment(appointment_id):
                 visit_type=visit_type,
                 tests=test_done,
                 medicines=medicines,
-                notes=notes
+                notes=notes,
+                consultation_fee=consultation_fee
             )
             db.session.add(treatment)
             db.session.commit()

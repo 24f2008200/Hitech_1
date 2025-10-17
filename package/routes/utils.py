@@ -1,6 +1,6 @@
 
 from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
-from models import db,Admin ,  Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Slot
+from models import db, Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Slot
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token
 from models import AppointmentStatus
@@ -80,6 +80,8 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
     appointment_rows = [
         {
             "ID": a.id,
+            "doctor_id":a.doctor_id,
+            "patient_id":a.patient_id,
             "Doctor": f"{a.doctor.name} {a.doctor.last_name}",
             "Patient": f"{a.patient.name} {a.patient.last_name}",
             "Date": a.slot.date.strftime("%Y-%m-%d"),
@@ -91,6 +93,7 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
             "Medicines": a.treatment.medicines if a.treatment else "N/A",
             "Tests": a.treatment.tests if a.treatment else "N/A",
             "Status": a.status.value,  # BOOKED / CANCELLED / COMPLETED
+            "Bill":a.treatment.consultation_fee if a.treatment else "N/A",
             "Actions": [{"label":p["label"],"url":url_for(p["url"],appointment_id=a.id),"color":p["color"]} for p in actions
                 # {"label": "View", "url": url_for("patient.edit_appointment", appointment_id=a.id), "color": "warning"},
                 # {"label": "Delete", "url": url_for("patient.delete_appointment", appointment_id=a.id), "color": "danger"}, 

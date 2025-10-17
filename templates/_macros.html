@@ -514,6 +514,10 @@
       <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
       <input id="{{ field.name }}" type="date" name="{{ field.name }}" class="form-control" {% if field.required
         %}required{% endif %} value="{{ field.value or '' }}">
+      {% elif field.type == "number" %}
+      <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
+      <input id="{{ field.name }}" type="number" name="{{ field.name }}" class="form-control" {% if field.required
+        %}required{% endif %} step="1" value="{{ field.value|int or '' }}">
       {% else %}
       <label class="form-label" for="{{ field.name }}">{{ field.label }}</label>
       <input id="{{ field.name }}" type="{{ field.type }}" name="{{ field.name }}" class="form-control" {% if

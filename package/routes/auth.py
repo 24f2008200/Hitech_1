@@ -1,7 +1,7 @@
 import os
 from functools import wraps
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from models import db, User, Admin, Doctor, Patient
+from models import db, User,  Doctor, Patient
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 
 # def auth_required(fn):

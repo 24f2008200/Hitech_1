@@ -16,6 +16,16 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @admin_required
 def admin_dashboard(tab_id):
     doctors = Doctor.query.filter(Doctor.status != "deleted").all()
+    appointments_rows = get_appointment_rows()
+    doctor_bills = {
+        d: sum(r["Bill"] for r in appointments_rows if r["doctor_id"] == d and isinstance(r["Bill"], (int, float)))
+        for d in {r["doctor_id"] for r in appointments_rows}
+    }
+    patient_bills = {
+        d: sum(r["Bill"] for r in appointments_rows if r["patient_id"] == d and isinstance(r["Bill"], (int, float)))
+        for d in {r["patient_id"] for r in appointments_rows}
+    }
+
     doctor_rows = []
     for d in doctors:
         doctor_rows.append({
@@ -35,13 +45,19 @@ def admin_dashboard(tab_id):
                         Slot.is_free == True
                     ).count(),
             "Status": d.status,
+            # "Bill": sum(
+            #         (getattr(getattr(appt, "treatment", None), "consultation_fee", 0) or 0)
+            #         for appt in (d.appointments or [])
+            #         if appt
+            #     ),
+            "Bill": f"{doctor_bills.get(d.id, 0):,}",
             "Actions": [
                 {"label": "Edit", "url": url_for("doctor.edit_doctor", doctor_id=d.id), "color": "warning"},
                 {"label": "Delete", "url": url_for("admin.delete_doctor", doctor_id=d.id), "color": "danger"},
                 {"label": "Blacklist", "url": url_for("admin.blacklist_doctor", doctor_id=d.id), "color": "dark"},
             ],
         })
-    doctor_cols =["ID", "Name", "Department", "Open","Closed","Available","Status", "Actions"]
+    doctor_cols =["ID", "Name", "Department", "Open","Closed","Available","Status","Bill", "Actions"]
     patients = Patient.query.filter(Patient.status != "deleted").all()
     patient_rows = [{
         "ID": p.id, 
@@ -49,6 +65,7 @@ def admin_dashboard(tab_id):
         "Phone": p.phone,
         "Email": p.email,
         "Status": p.status,
+        "Bill": f"{patient_bills.get(p.id, 0):,}",
          "Actions": [
                 {"label": "Edit", "url": url_for("admin.edit_patient", patient_id=p.id), "color": "warning"},
                 {"label": "Delete", "url": url_for("admin.delete_patient", patient_id=p.id), "color": "danger"},
@@ -63,6 +80,7 @@ def admin_dashboard(tab_id):
         {"key": "Phone", "label": "Phone", },
         {"key": "Email", "label": "Email", },
         {"key": "Status", "label": "Status", "filterType": "select"},
+        {"key": "Bill", "label": "Bill", },
         {"key": "Actions", "label": "Actions", "type": "action"}
                 ]
     appointments_cols = [
@@ -73,6 +91,7 @@ def admin_dashboard(tab_id):
         {"key": "Session", "label": "Session"},
         {"key": "Department", "label": "Department"},
         {"key": "Status", "label": "Status"},
+        {"key": "Bill", "label": "Bill"},
         {"key": "Actions", "label": "Actions", "type": "action"}
     ]
 
@@ -81,14 +100,15 @@ def admin_dashboard(tab_id):
         "Name": d.name , 
         "Description": d.description, 
         "Doctors": ", ".join([ doc.name for doc in d.doctors  ]) ,
+        "Bill":f"{sum(doctor_bills.get(doc.id, 0) for doc in d.doctors ):,}",
         "Actions": [
                 {"label": "Edit", "url": url_for("admin.edit_department", department_id=d.id), "color": "warning"},
                 {"label": "Delete", "url": url_for("admin.delete_department", department_id=d.id), "color": "danger"},
             ],
         }
           for d in departments ] 
-    department_cols =["Name", "Description","Doctors","Actions"]
-    appointments_rows = get_appointment_rows()
+    department_cols =["Name", "Description","Doctors","Bill","Actions"]
+    
 
     total_doctors = db.session.query(Doctor).count()
     total_patients = db.session.query(Patient).count()

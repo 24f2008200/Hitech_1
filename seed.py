@@ -3,7 +3,7 @@ from faker import Faker
 import random
 from datetime import date, timedelta,datetime
 
-from models import db, Admin, Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User,Sessions
+from models import db,  Department, Doctor, Patient, Slot, Appointment, AppointmentStatus, Treatment, User,Sessions
 
 TEST = False
 
@@ -33,11 +33,12 @@ def seed_database():
     # -----------------
     # 1 Admin
     # -----------------
-    admin = Admin(
+    admin = User(
         name="Super",
         last_name="Admin",
         email="admin@example.com",
         password="123",
+        type ="admin",
         role="admin",
     )
     db.session.add(admin)
@@ -460,6 +461,7 @@ def seed_database():
                     visit_type=random.choice(visit_types),
                     tests=random.choice(tests),
                     medicines=prescription,
+                    consultation_fee = random.randint(1, 5) * 500
                 )
 
                 appt.complete(treatment)
