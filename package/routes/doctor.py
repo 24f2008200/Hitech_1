@@ -128,7 +128,8 @@ def edit_doctor(doctor_id):
 @doctor_required
 def doctor_dashboard(tab_id=1):
     doctor  = current_user
-    appointments = sorted(doctor.appointments, key=lambda a: a.slot.date)
+    appointments = sorted(doctor.appointments, key=lambda a: a.slot.date, reverse=True)
+    patient_appointments = get_patients_appointments()
     patients = [] # unique patients
     patient_rows = []
     if appointments is not None:
@@ -137,14 +138,19 @@ def doctor_dashboard(tab_id=1):
                 patients.append(a.patient)
                 patient_rows.append({"ID": a.patient.id, 
                                      "Patient": a.patient.name +" " +a.patient.last_name, 
-                                     "Date": a.slot.date.strftime("%Y-%m-%d") if a.slot else "N/A",
-                                     "Session": a.slot.session if a.slot else "N/A",
-                                     "Status": a.status.value,
+                                     "Age" : a.patient.age,
+                                     "Last Seen": patient_appointments[a.patient.id]["last_seen"],
+                                     "Next Visit": patient_appointments[a.patient.id]["next_appointment"],
+                                     "Phone": a.patient.phone,
                                      "Actions": [
                     {"label": "View", "url": url_for("patient.patient_history",  patient_id=a.patient.id), "color": "info"},
                     # {"label": "Close", "url": url_for("doctor.close_appointment",  appointment_id=a.id), "color": "success"},
                     # {"label": "Cancel", "url": url_for("doctor.cancel_appointment",  appointment_id=a.id), "color": "danger"},
                 ],} )
+    patient_rows = sorted(
+            patient_rows,
+            key=lambda row: row["Patient"].lower()  
+        )
     actions =[
                     {"label": "Update", "url":"doctor.update_appointment", "color": "info"},
                     {"label": "Close", "url": "doctor.close_appointment",  "color": "success"},
@@ -152,11 +158,25 @@ def doctor_dashboard(tab_id=1):
                 ]
 
     appointments_rows = get_appointment_rows(doc_id=doctor.id,active=True,actions=actions)
+    actions =["None"]
+    appointments_rows_completed= get_appointment_rows(doc_id=doctor.id,status=AppointmentStatus.COMPLETED,actions=actions)
+    appointments_rows_completed.reverse()
+    alert_rows = get_alerts(doc_id=doctor.id)
+    alert_cols =[ {"key": "ID", "label": "ID"},
+        {"key": "Patient", "label": "Patient"},
+        {"key": "P Mobile", "label": "P Mobile", },
+        {"key": "Doctor", "label": "Doctor", },
+        {"key": "D Mobile", "label": "D Mobile"},
+        {"key": "Message", "label": "Message", },
+        {"key": "Time", "label": "actionTime", },
+        {"key": "Actions", "label": "Actions", "type": "action"}
+                ]
     tabs = [
-        {"label": "Upcomming Appointments", "columns": ["ID", "Patient", "Date", "Session", "Reason", "Actions"], "rows": appointments_rows},
-        {"label": "My Patients", "columns": ["ID", "Patient","Date","Session","Status","Actions"], "rows": patient_rows},
-        {"label": "All Appointments", "columns": ["ID", "Date","Session","Patient", "Reason", "Status","Actions"], "rows": appointments_rows},
-                {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
+        {"label": "Upcomming Appointments", "columns": ["ID", "Patient", "Date", "Session", "Symptoms", "Actions"], "rows": appointments_rows},
+        {"label": "My Patients", "columns": ["ID", "Patient","Age" ,"Last Seen","Next Visit","Phone","Status","Actions"], "rows": patient_rows},
+        {"label": "Completed Appointments",  "filterTable": "treats", "columns": ["ID", "Date","Patient", "Symptoms", "Diagnosis","Prescription"], "rows": appointments_rows_completed},
+        {"label": "Alerts", "filterTable": "alerts", "columns": alert_cols, "rows": alert_rows},
+        {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy2.html" ,"rows":["Doctor’s dashboard must display upcoming appointments for the day/week.","Doctor’s dashboard must show list of patients assigned to the doctor.",
                                                           "Doctor's dashboard must have the option to mark appointments as Completed or Cancelled.",
                                                           "Doctors can provide their availability for the next 7 days.",
@@ -263,10 +283,12 @@ def edit_availability():
                 record.available = is_avail
                 db.session.flush()
     try:
+        print("I am here" ,home_url)
         db.session.commit()
-        flash("✅ Department added successfully!", "success")
+        flash("Availability Updated successfully!", "success")
         return redirect(home_url)
     except Exception as e:
+        print("error")
         db.session.rollback()
         flash(f"Error Editing Availability: {e}", "danger")
         return redirect(edit_url)
@@ -434,10 +456,39 @@ def close_appointment(appointment_id):
                                    )
 
 
-@doctor_bp.route("/cancel_appointment/<int:appointment_id>")
+@doctor_bp.route("/cancel_appointment/<int:appointment_id>" , methods=["GET", "POST"])
 @doctor_required
 def cancel_appointment(appointment_id):
-    return "todo"
+    appt = Appointment.query.get_or_404(appointment_id)
+
+    edit_url = url_for("doctor.cancel_appointment",appointment_id=appointment_id)
+    tab_id = 1
+    home_url = get_home_url(tab_id=tab_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code !=appointment_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to cancel this appointment", 
+                                   confirmation_code = appointment_id,
+                                   button_msg = "Yes-Delete",
+                                   return_url = edit_url
+                                   )
+        try:
+            appt.cancel()
+            db.session.commit()
+            flash("Appointment Cancelled. Admin alerted to inform the Patient.", "success")
+        except ValueError as e:
+            flash(str(e), "danger")
+        return redirect(url_for("doctor.doctor_dashboard", tab_id=1))
+    
+    return render_template('confirmation.html',
+                                message ="Do You want to cancel this appointment",
+                                confirmation_code = appointment_id,
+                                button_msg = "Yes-Delete",
+                                return_url = edit_url,
+                                cancel_url = home_url
+                                )
+
 
 
 @doctor_bp.route("/appointments/<int:appointment_id>/complete", methods=["GET", "POST"])

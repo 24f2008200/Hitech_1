@@ -1,16 +1,19 @@
 
-from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash
-from models import db, Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Slot
-from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token
-from models import AppointmentStatus
-from werkzeug.security import check_password_hash
-from package.routes.auth import admin_required,  doctor_required, patient_required ,role_required
-from flask_wtf import CSRFProtect
-from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from collections import defaultdict
+from datetime import date
 from datetime import datetime ,timedelta ,date
+from flask import Flask, render_template, redirect, url_for, request ,send_from_directory, flash, jsonify
+from flask_jwt_extended import JWTManager, create_access_token
+from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
+from flask_wtf import CSRFProtect
 from sqlalchemy import and_,or_
 from sqlalchemy.orm import aliased
+from werkzeug.security import check_password_hash
+
+from package.routes.auth import admin_required,  doctor_required, patient_required ,role_required
+from models import db, Appointment ,  Department , Doctor ,  Patient ,  Treatment ,  User,Slot ,Alert,AppointmentStatus
+
+
 
 
 def field_value(obj, attr, default=""):
@@ -32,10 +35,33 @@ def get_home_url(tab_id=1):
     else:
         return url_for("login")
 
+def get_patients_appointments(doctor = current_user):
+    # Filter only this doctor's appointments
+    appointments = doctor.appointments  
+    
+    # Group by patient_id
+    patient_dict = defaultdict(lambda: {"last_seen": None, "next_appointment": None})
+    
+    today = date.today()
+    
+    for appt in appointments:
+        slot_date = appt.slot.date  # assuming slot is related
+        pid = appt.patient_id
+        
+        if appt.status.value == 'completed':
+            # update last_seen if later than previous
+            if (patient_dict[pid]["last_seen"] is None) or (slot_date > patient_dict[pid]["last_seen"]):
+                patient_dict[pid]["last_seen"] = slot_date
+                
+        elif appt.status.value == 'booked':
+            # update next_appointment if earlier than previous and future
+            if slot_date >= today:
+                if (patient_dict[pid]["next_appointment"] is None) or (slot_date < patient_dict[pid]["next_appointment"]):
+                    patient_dict[pid]["next_appointment"] = slot_date
+                    
+    return dict(patient_dict)
 
-
-
-def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
+def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,status=None,
                          dept_id=None, active=None, actions=None):
 
     # Explicit aliases to avoid overlap warnings
@@ -60,7 +86,9 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
         filters.append(SlotAlias.date >= start_date)
     if dept_id:
         filters.append(DoctorAlias.department_id == dept_id)
-    if active is not None:
+    if status is not None:
+        filters.append(Appointment.status == status)
+    elif active is not None:
         if active: 
             filters.append(Appointment.status == AppointmentStatus.BOOKED)
         else:  
@@ -75,7 +103,19 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
     if not actions:
         actions =[{"label":"View","url":"patient.edit_appointment", "color": "warning"},
                   {"label":"Delete","url":"patient.delete_appointment", "color": "danger"},]
-    
+    elif actions[0] == "None":
+        actions = None
+    def build_actions(actions, appointment_id):
+        if actions is None:
+            return [{"label": "NoAction", "url": "", "color": "success"}]
+        return [
+            {
+                "label": p.get("label", "NoAction"),
+                "url": url_for(p["url"], appointment_id=appointment_id) if p.get("url") else "",
+                "color": p.get("color", "success"),
+            }
+            for p in actions 
+        ]
 
     appointment_rows = [
         {
@@ -86,24 +126,66 @@ def get_appointment_rows(doc_id=None, pat_id=None, start_date=None,
             "Patient": f"{a.patient.name} {a.patient.last_name}",
             "Date": a.slot.date.strftime("%Y-%m-%d"),
             "Session": a.slot.session,
-            "Reason": a.reason,
+            "Symptoms": a.reason,
             "Diagnosis": a.treatment.diagnosis if a.treatment else "N/A",
             "Prescription": a.treatment.prescription if a.treatment else "N/A",
             "Department": a.doctor.department.name if a.doctor.department else "N/A",
             "Medicines": a.treatment.medicines if a.treatment else "N/A",
             "Tests": a.treatment.tests if a.treatment else "N/A",
             "Status": a.status.value,  # BOOKED / CANCELLED / COMPLETED
-            "Bill":a.treatment.consultation_fee if a.treatment else "N/A",
-            "Actions": [{"label":p["label"],"url":url_for(p["url"],appointment_id=a.id),"color":p["color"]} for p in actions
-                # {"label": "View", "url": url_for("patient.edit_appointment", appointment_id=a.id), "color": "warning"},
-                # {"label": "Delete", "url": url_for("patient.delete_appointment", appointment_id=a.id), "color": "danger"}, 
-            ],
+            "Bill":a.treatment.consultation_fee if a.treatment else "",
+            "Actions": build_actions(actions =actions,appointment_id= a.id),
         }
         for a in appointments
     ]
 
+
+
     return appointment_rows
 
+def get_alerts(doc_id=None, pat_id=None):
+    query = Alert.query.filter_by(status='open')
+
+    if pat_id is not None:
+        query = query.filter_by(patient_id=pat_id)
+    if doc_id is not None:
+        query = query.filter_by(doctor_id=doc_id)
+
+
+    alerts = query.all()
+    alert_rows = []
+
+    def check(alert):
+        if current_user.role == 'admin':
+            return True
+        elif pat_id is not None:
+            return alert.direction
+        else:
+            return not alert.direction
+
+
+
+
+    for  a in alerts:
+        alert_rows.append({
+            "ID": a.id,
+            "Patient": a.patient.name +" " +a.patient.last_name,
+            "P Mobile":a.patient.phone,
+            "Doctor": a.doctor.name +" " +a.doctor.last_name,
+            "D Mobile":a.doctor.phone,
+            "Message":a.message,
+            "Time": a.created_at.strftime("%Y-%m-%d"),
+            "Actions": (
+                [{"label": "Close", "url": url_for("admin.close_alert", alert_id=a.id), "color": "warning"}]
+                if check(a)
+                else []
+            )
+        })
+
+
+
+
+    return alert_rows
 
 def search_records(wheretosearch, feature, value):
     value_like = f"%{value}%"

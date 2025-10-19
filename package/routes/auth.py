@@ -32,7 +32,7 @@ def role_required(*role_name):
             user = current_user
             if user is None:
                 return {"msg": "Not authenticated"}, 401
-
+            print (user,user.type, role_name)
             if user.type not in role_name:
                 return {"msg": f"Access denied, must be {role_name}"}, 403
 

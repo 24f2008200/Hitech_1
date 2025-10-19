@@ -1,5 +1,5 @@
 import enum
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user, UserMixin
@@ -185,10 +185,10 @@ class User(myModel,UserMixin):
 
     type = db.Column(db.String(50))  # discriminator column
 
-    # __mapper_args__ = {
-    #     "polymorphic_identity": "user",
-    #     "polymorphic_on": type,
-    # }
+    __mapper_args__ = {
+        "polymorphic_identity": "user",
+        "polymorphic_on": type,
+    }
 
     def __init__(self, name, email, password, last_name=None, 
                  dob=None, phone=None, address=None ,role ="patient", **kwargs):
@@ -207,21 +207,31 @@ class User(myModel,UserMixin):
 
     def check_password(self, plain_password: str) -> bool:
         return check_password_hash(self.password_hash, plain_password)
+    
+    @property
+    def age(self):
+        """Compute age (in years) from dob."""
+        if not self.dob:
+            return None
+        today = date.today()
+        return today.year - self.dob.year - (
+            (today.month, today.day) < (self.dob.month, self.dob.day)
+        )
 
 
-# # --------------------------
-# # Admin
-# # --------------------------
-# class Admin(User):
-#     __tablename__ = "admins"
+# --------------------------
+# Admin
+# --------------------------
+class Admin(User):
+    __tablename__ = "admins"
 
-#     id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey("users.id"), primary_key=True)
 
-#     __mapper_args__ = {
-#         "polymorphic_identity": "admin",
-#     }
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
+    __mapper_args__ = {
+        "polymorphic_identity": "admin",
+    }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
 
 # --------------------------
@@ -250,6 +260,7 @@ class Doctor(User):
     department = db.relationship("Department", back_populates="doctors")
     appointments = db.relationship("Appointment", back_populates="doctor")
     availability = db.relationship("Slot", back_populates="doctor", cascade="all, delete-orphan")
+    alerts = db.relationship("Alert", back_populates="doctor")
     speciality = db.Column(db.String(100))
 
     __mapper_args__ = {
@@ -266,6 +277,8 @@ class Patient(User):
     medical_history = db.Column(db.Text)
 
     appointments = db.relationship("Appointment", back_populates="patient")
+    alerts = db.relationship("Alert", back_populates="patient")
+    
 
     __mapper_args__ = {
         "polymorphic_identity": "patient",
@@ -301,7 +314,18 @@ class Appointment(myModel):
         if self.status != AppointmentStatus.BOOKED:
             raise ValueError("Only booked appointments can be cancelled.")
         self.status = AppointmentStatus.CANCELLED
-        self.slot.is_free = True
+        if self.slot:
+            self.slot.is_free = True
+        msg =''
+        pName = self.patient.name + " " + self.patient.last_name
+        dName = self.doctor.name + " " + self.doctor.last_name
+        if current_user.role == 'doctor':
+            msg =  dName +" with " + pName
+        elif current_user.role == 'patient':
+            msg = 'Patient ' + pName +" with " + dName
+        message = "Cancelled appoinment on "+ self.slot.date.strftime("%Y-%m-%d")+" by " + msg   
+        alert = Alert(patient_id = self.patient_id ,doctor_id =self.doctor_id,message =message)
+        db.session.add(alert)
         db.session.add(self)
 
     def complete(self, treatment=None):
@@ -325,9 +349,9 @@ class Slot(myModel):
     doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
     date = db.Column(db.Date, nullable=False)
     session = db.Column(db.String(20), nullable=False)   # morning / evening
-    ever_active = db.Column(db.Boolean, default=False, nullable=False)
-    available = db.Column(db.Boolean, default=True, nullable=False)
-    is_free = db.Column(db.Boolean, default=True, nullable=False)
+    ever_active = db.Column(db.Boolean, default=False, nullable=False) # booked atleast once before
+    available = db.Column(db.Boolean, default=True, nullable=False) # doc available / not available
+    is_free = db.Column(db.Boolean, default=True, nullable=False) # free of appoinments
 
 
     doctor = db.relationship("Doctor", back_populates="availability")
@@ -420,6 +444,27 @@ class Treatment(myModel):
     medicines = db.Column(db.Text)
     appointment = db.relationship("Appointment", back_populates="treatment")
     consultation_fee = db.Column(db.Integer ,default = 0)
+
+class Alert(myModel):
+    __tablename__ = "alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey("patients.id"), nullable=False)
+    doctor_id = db.Column(db.Integer, db.ForeignKey("doctors.id"), nullable=False)
+    direction = db.Column(db.Boolean) # 0 -> doc to pat else otherwise
+    message = db.Column(db.Text)
+    status = db.Column(db.String(10)) # open / closed
+
+    doctor = db.relationship("Doctor", back_populates="alerts") 
+    patient = db.relationship("Patient", back_populates="alerts")
+
+    def __init__(self,doctor_id,patient_id, message, **kwargs):
+        self.direction = current_user.role == 'doctor'
+        self.doctor_id = doctor_id
+        self.patient_id = patient_id
+        self.message = message
+        self.status = 'open' # if self.direction else 'closed'
+
 
 
 def to_dict_any(obj, include_relationships=False):

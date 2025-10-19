@@ -16,7 +16,8 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @admin_required
 def admin_dashboard(tab_id):
     doctors = Doctor.query.filter(Doctor.status != "deleted").all()
-    appointments_rows = get_appointment_rows()
+    appointments_rows = get_appointment_rows(active=None)
+
     doctor_bills = {
         d: sum(r["Bill"] for r in appointments_rows if r["doctor_id"] == d and isinstance(r["Bill"], (int, float)))
         for d in {r["doctor_id"] for r in appointments_rows}
@@ -25,6 +26,31 @@ def admin_dashboard(tab_id):
         d: sum(r["Bill"] for r in appointments_rows if r["patient_id"] == d and isinstance(r["Bill"], (int, float)))
         for d in {r["patient_id"] for r in appointments_rows}
     }
+    patient_appointments = {}
+
+    for appt in appointments_rows:
+        pid = appt["patient_id"]
+        status = appt["Status"]
+
+        if pid not in patient_appointments:
+            patient_appointments[pid] = {"booked": 0, "completed": 0}
+
+        if status == "booked":
+            patient_appointments[pid]["booked"] += 1
+        elif status == "completed":
+            patient_appointments[pid]["completed"] += 1
+
+    for pid, data in patient_appointments.items():
+        data["app"] = f"{data['booked']}/{data['completed']}"
+
+    
+    appointments_rows_inactive =[r for r in  appointments_rows if r["Status"] != 'booked'] # get_appointment_rows(active=False)
+    appointments_rows_inactive.reverse()
+
+    appointments_rows =[r for r in  appointments_rows if r["Status"] == 'booked']
+
+    def get_appts(pid):
+        return patient_appointments[pid]["app"] if pid in patient_appointments else ''
 
     doctor_rows = []
     for d in doctors:
@@ -64,22 +90,33 @@ def admin_dashboard(tab_id):
         "Name": p.name + " " + p.last_name, 
         "Phone": p.phone,
         "Email": p.email,
-        "Status": p.status,
+        "Appts": get_appts(p.id) ,
         "Bill": f"{patient_bills.get(p.id, 0):,}",
          "Actions": [
                 {"label": "Edit", "url": url_for("admin.edit_patient", patient_id=p.id), "color": "warning"},
+                {"label": "History", "url": url_for("patient.patient_history", patient_id=p.id), "color": "success"},
                 {"label": "Delete", "url": url_for("admin.delete_patient", patient_id=p.id), "color": "danger"},
                 {"label": "Blacklist", "url": url_for("admin.blacklist_patient", patient_id=p.id), "color": "dark"},
             ],
 
         } 
         for p in patients]
+    alert_rows = get_alerts()
+    alert_cols =[ {"key": "ID", "label": "ID"},
+        {"key": "Patient", "label": "Patient"},
+        {"key": "P Mobile", "label": "P Mobile", },
+        {"key": "Doctor", "label": "Doctor", },
+        {"key": "D Mobile", "label": "D Mobile"},
+        {"key": "Message", "label": "Message", },
+        {"key": "Time", "label": "actionTime", },
+        {"key": "Actions", "label": "Actions", "type": "action"}
+                ]
     
     patient_columns =[ {"key": "ID", "label": "ID"},
         {"key": "Name", "label": "Full Name"},
         {"key": "Phone", "label": "Phone", },
         {"key": "Email", "label": "Email", },
-        {"key": "Status", "label": "Status", "filterType": "select"},
+        {"key": "Appts", "label": "Appts", },
         {"key": "Bill", "label": "Bill", },
         {"key": "Actions", "label": "Actions", "type": "action"}
                 ]
@@ -94,7 +131,16 @@ def admin_dashboard(tab_id):
         {"key": "Bill", "label": "Bill"},
         {"key": "Actions", "label": "Actions", "type": "action"}
     ]
-
+    appointments_cols_inactive = [
+        {"key": "ID", "label": "ID"},
+        {"key": "Doctor", "label": "Doctor"},
+        {"key": "Patient", "label": "Patient"},
+        {"key": "Date", "label": "Date"},
+        {"key": "Session", "label": "Session"},
+        {"key": "Department", "label": "Department"},
+        {"key": "Status", "label": "Status"},
+        {"key": "Bill", "label": "Bill"},
+    ]
     departments = Department.query.all()
     department_rows = [{
         "Name": d.name , 
@@ -151,7 +197,10 @@ def admin_dashboard(tab_id):
         {"label": "Doctors", "columns": doctor_cols, "rows": doctor_rows},
         {"label": "Patients", "filterTable": "patients", "columns": patient_columns, "rows": patient_rows},
         {"label": "Departments", "columns": department_cols, "rows": department_rows},
-        {"label": "Appointments", "filterTable": "appointments", "columns": appointments_cols, "rows": appointments_rows},
+        {"label": "Appointments", "filterTable": "active", "columns": appointments_cols, "rows": appointments_rows},
+        {"label": "Appt_Inactive", "filterTable": "inactive", "columns": appointments_cols_inactive, "rows": appointments_rows_inactive},
+        {"label": "Alerts", "filterTable": "alerts", "columns": alert_cols, "rows": alert_rows},
+        
         {"label": "Search", "page" : "search_tab.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "Develop", "page" : "dummy1.html" ,"rows":["One","two"], "extra":["OK"]},
         {"label": "ToDo", "page" : "dummy2.html" ,"rows":dummy2_rows,"extra":["OK"]},
@@ -488,9 +537,7 @@ def blacklist_doctor(doctor_id):
             app =doc.appointments
             for a in app:
                 if a.status == AppointmentStatus.BOOKED:
-                    slot = a.slot
-                    if slot:
-                        slot.cancel()
+                    a.cancel()
             doc.status = "blacklisted"
             db.session.commit()
             flash("✅ That  doctor is blacklisted", "success")
@@ -668,9 +715,7 @@ def blacklist_patient(patient_id):
             app =patient.appointments
             for a in app:
                 if a.status == AppointmentStatus.BOOKED:
-                    slot = a.slot
-                    if slot:
-                        slot.cancel()
+                    a.cancel()
             patient.status = "blacklisted"
             db.session.commit()
             flash("✅ That  patient is blacklisted", "success")
@@ -687,3 +732,48 @@ def blacklist_patient(patient_id):
                                    return_url = edit_url,
                                    cancel_url = home_url
                                    )
+
+@admin_bp.route("/close_alert/<int:alert_id>", methods=["GET", "POST"])
+@login_required
+def close_alert(alert_id):
+    edit_url=''
+    home_url=''
+    if current_user.role =='admin':
+        home_url =url_for("admin.admin_dashboard", tab_id=7)
+        edit_url =url_for("admin.close_alert", alert_id=alert_id)
+    elif current_user.role =='doctor':
+        home_url =url_for("doctor.doctor_dashboard", tab_id=4)
+        edit_url =url_for("admin.close_alert", alert_id=alert_id)
+    else :
+        home_url =url_for("patient.patient_dashboard", tab_id=6)
+        edit_url =url_for("admin.close_alert", alert_id=alert_id)
+    if request.method == "POST":
+        code = int(request.form.get("confirmation"))
+        if code != alert_id:
+            return render_template('confirmation.html',
+                                   message ="Do You want to Close this Alert", 
+                                   confirmation_code = alert_id,
+                                   button_msg = "Yes-Close",
+                                   return_url = edit_url
+                                   )
+        
+        try:
+            alert = Alert.query.get_or_404(alert_id)
+            alert.status = 'closed'
+            db.session.commit()
+            flash("✅ That  alert is closed", "success")
+            return redirect(home_url)
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error blacklisting patient: {e}", "danger")
+            return redirect(home_url)
+
+    return render_template('confirmation.html',
+                                   message ="Do You want to Close this Alert",
+                                   confirmation_code = alert_id,
+                                   button_msg = "Yes-Close",
+                                   return_url = edit_url,
+                                   cancel_url = home_url
+                                   )
+
+  
